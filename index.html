@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi POS - Control Financiero</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 pb-20">
+
+  <!-- Encabezado -->
+  <header class="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-lg flex items-center gap-2">
+        <i class="fa-solid fa-store text-emerald-400"></i> Mi POS Negocio
+      </h1>
+      <p class="text-xs text-gray-400">Ventas, Reinversión y Gastos</p>
+    </div>
+    <button onclick="exportarCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 shadow">
+      <i class="fa-solid fa-file-excel"></i> Exportar
+    </button>
+  </header>
+
+  <main class="p-4 max-w-lg mx-auto space-y-4">
+
+    <!-- Tarjetas Principales del Dashboard -->
+    <section class="grid grid-cols-2 gap-3">
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200">
+        <div class="flex items-center gap-1.5 text-emerald-600 mb-1">
+          <i class="fa-solid fa-chart-line text-xs"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider">Ganancia Neta</span>
+        </div>
+        <div id="dash-ganancia-neta" class="text-lg font-extrabold text-gray-900">$0.00</div>
+        <p class="text-[9px] text-gray-400 mt-0.5">Utilidad real (menos gastos)</p>
+      </div>
+
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200">
+        <div class="flex items-center gap-1.5 text-blue-600 mb-1">
+          <i class="fa-solid fa-piggy-bank text-xs"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider">Reinversión</span>
+        </div>
+        <div id="dash-reinversion" class="text-lg font-extrabold text-gray-900">$0.00</div>
+        <p class="text-[9px] text-gray-400 mt-0.5">Fondo reposición (No tocar)</p>
+      </div>
+    </section>
+
+    <!-- Resumen Ingresos y Gastos -->
+    <section class="bg-slate-900 text-white p-3.5 rounded-2xl shadow-md grid grid-cols-3 gap-2 text-center text-xs">
+      <div>
+        <span class="text-[10px] text-gray-400 block">Ventas Brutas</span>
+        <span id="dash-total-bruto" class="font-bold text-white text-sm">$0.00</span>
+      </div>
+      <div>
+        <span class="text-[10px] text-gray-400 block">Gastos Fijos</span>
+        <span id="dash-total-gastos" class="font-bold text-red-400 text-sm">$0.00</span>
+      </div>
+      <div>
+        <span class="text-[10px] text-gray-400 block">Ventas Reg.</span>
+        <span id="dash-cant-ventas" class="font-bold text-emerald-400 text-sm">0</span>
+      </div>
+    </section>
+
+    <!-- Pestañas de Navegación -->
+    <div class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold">
+      <button id="tab-vender" onclick="switchTab('vender')" class="flex-1 py-2 rounded-lg bg-white shadow text-slate-900 transition">
+        <i class="fa-solid fa-cart-plus"></i> Vender
+      </button>
+      <button id="tab-inventario" onclick="switchTab('inventario')" class="flex-1 py-2 rounded-lg text-gray-600 transition">
+        <i class="fa-solid fa-boxes-stacked"></i> Productos
+      </button>
+      <button id="tab-gastos" onclick="switchTab('gastos')" class="flex-1 py-2 rounded-lg text-gray-600 transition">
+        <i class="fa-solid fa-wallet"></i> Gastos
+      </button>
+      <button id="tab-historial" onclick="switchTab('historial')" class="flex-1 py-2 rounded-lg text-gray-600 transition">
+        <i class="fa-solid fa-receipt"></i> Historial
+      </button>
+    </div>
+
+    <!-- SECCIÓN: REGISTRAR VENTA -->
+    <section id="sec-vender" class="space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider flex items-center gap-2 border-b pb-2">
+          <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
+        </h2>
+        
+        <div id="grid-productos-venta" class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto p-0.5 hide-scrollbar"></div>
+
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2">
+          <div class="flex justify-between items-center text-xs text-gray-500">
+            <span>Seleccionado:</span>
+            <span id="cart-item-name" class="font-bold text-gray-800">Ninguno</span>
+          </div>
+          
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2 bg-white border rounded-xl p-1">
+              <button onclick="updateQty(-1)" class="w-7 h-7 rounded-lg bg-gray-100 font-bold text-gray-700 active:bg-gray-300">-</button>
+              <span id="cart-qty" class="w-5 text-center font-bold text-xs">1</span>
+              <button onclick="updateQty(1)" class="w-7 h-7 rounded-lg bg-gray-100 font-bold text-gray-700 active:bg-gray-300">+</button>
+            </div>
+            <div class="text-right">
+              <div class="text-[9px] text-gray-400">Total</div>
+              <div id="cart-total-price" class="text-base font-black text-emerald-600">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="completarVenta()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-3 rounded-xl font-bold text-xs shadow transition flex justify-center items-center gap-2">
+          <i class="fa-solid fa-check-circle"></i> Registrar Venta
+        </button>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: INVENTARIO -->
+    <section id="sec-inventario" class="hidden space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider border-b pb-2">Nuevo Producto</h2>
+        <form onsubmit="guardarProducto(event)" class="space-y-2.5">
+          <input type="text" id="prod-nombre" required placeholder="Nombre del producto" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          <div class="grid grid-cols-2 gap-2">
+            <input type="number" step="0.01" id="prod-costo" required placeholder="Costo ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+            <input type="number" step="0.01" id="prod-precio" required placeholder="Precio Venta ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          </div>
+          <button type="submit" class="w-full bg-slate-900 text-white py-2 rounded-xl text-xs font-bold shadow">Guardar Producto</button>
+        </form>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Catálogo</h3>
+        <div id="lista-productos" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: GASTOS -->
+    <section id="sec-gastos" class="hidden space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider border-b pb-2">Registrar Gasto Fijo / Operativo</h2>
+        <form onsubmit="guardarGasto(event)" class="space-y-2.5">
+          <input type="text" id="gasto-concepto" required placeholder="Concepto (ej. Alquiler, Internet, Publicidad)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          <input type="number" step="0.01" id="gasto-monto" required placeholder="Monto ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          <button type="submit" class="w-full bg-red-600 text-white py-2 rounded-xl text-xs font-bold shadow">Registrar Gasto</button>
+        </form>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Lista de Gastos</h3>
+        <div id="lista-gastos" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: HISTORIAL -->
+    <section id="sec-historial" class="hidden space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-2">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider">Historial de Ventas</h2>
+          <button onclick="limpiarHistorial()" class="text-[10px] text-red-500 font-semibold hover:underline">Borrar todo</button>
+        </div>
+        <div id="lista-ventas" class="space-y-1.5 max-h-64 overflow-y-auto"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let productos = JSON.parse(localStorage.getItem('pos_prods')) || [
+      { id: 1, nombre: 'Producto 1', costo: 5.00, precio: 10.00 },
+      { id: 2, nombre: 'Producto 2', costo: 8.00, precio: 15.00 }
+    ];
+    let ventas = JSON.parse(localStorage.getItem('pos_vts')) || [];
+    let gastos = JSON.parse(localStorage.getItem('pos_gst')) || [];
+    
+    let selectedProd = null;
+    let selectedQty = 1;
+
+    function init() {
+      renderProductos();
+      renderVentas();
+      renderGastos();
+      updateDashboard();
+    }
+
+    function switchTab(tab) {
+      ['vender', 'inventario', 'gastos', 'historial'].forEach(t => {
+        document.getElementById(`sec-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).className = "flex-1 py-2 rounded-lg text-gray-600 transition";
+      });
+      document.getElementById(`sec-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).className = "flex-1 py-2 rounded-lg bg-white shadow text-slate-900 font-bold transition";
+    }
+
+    function renderProductos() {
+      const grid = document.getElementById('grid-productos-venta');
+      const lista = document.getElementById('lista-productos');
+      grid.innerHTML = ''; lista.innerHTML = '';
+
+      productos.forEach(p => {
+        const isSelected = selectedProd && selectedProd.id === p.id;
+        const card = document.createElement('div');
+        card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition ${isSelected ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500' : 'border-gray-200 bg-gray-50'}`;
+        card.onclick = () => { selectedProd = p; selectedQty = 1; updateCart(); renderProductos(); };
+        card.innerHTML = `<div class="font-bold text-xs truncate">${p.nombre}</div><div class="text-sm font-black text-emerald-600">$${p.precio.toFixed(2)}</div><div class="text-[9px] text-gray-400">Costo: $${p.costo.toFixed(2)}</div>`;
+        grid.appendChild(card);
+
+        const item = document.createElement('div');
+        item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
+        item.innerHTML = `<div><span class="font-bold">${p.nombre}</span> <span class="text-[10px] text-gray-400">(C: $${p.costo.toFixed(2)} | V: $${p.precio.toFixed(2)})</span></div><button onclick="eliminarProducto(${p.id})" class="text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button>`;
+        lista.appendChild(item);
+      });
+    }
+
+    function updateQty(delta) {
+      if (!selectedProd) return;
+      selectedQty = Math.max(1, selectedQty + delta);
+      updateCart();
+    }
+
+    function updateCart() {
+      if (!selectedProd) return;
+      document.getElementById('cart-item-name').innerText = selectedProd.nombre;
+      document.getElementById('cart-qty').innerText = selectedQty;
+      document.getElementById('cart-total-price').innerText = `$${(selectedProd.precio * selectedQty).toFixed(2)}`;
+    }
+
+    function completarVenta() {
+      if (!selectedProd) return alert('Selecciona un producto');
+      const ingreso = selectedProd.precio * selectedQty;
+      const reinversion = selectedProd.costo * selectedQty;
+      const gananciaBruta = ingreso - reinversion;
+
+      ventas.unshift({
+        fecha: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        producto: selectedProd.nombre,
+        cantidad: selectedQty,
+        ingreso, reinversion, gananciaBruta
+      });
+
+      localStorage.setItem('pos_vts', JSON.stringify(ventas));
+      selectedProd = null; updateCart(); renderProductos(); renderVentas(); updateDashboard();
+      alert('Venta registrada');
+    }
+
+    function guardarProducto(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('prod-nombre').value;
+      const costo = parseFloat(document.getElementById('prod-costo').value);
+      const precio = parseFloat(document.getElementById('prod-precio').value);
+      productos.push({ id: Date.now(), nombre, costo, precio });
+      localStorage.setItem('pos_prods', JSON.stringify(productos));
+      e.target.reset(); renderProductos(); switchTab('vender');
+    }
+
+    function eliminarProducto(id) {
+      productos = productos.filter(p => p.id !== id);
+      localStorage.setItem('pos_prods', JSON.stringify(productos));
+      renderProductos();
+    }
+
+    function guardarGasto(e) {
+      e.preventDefault();
+      const concepto = document.getElementById('gasto-concepto').value;
+      const monto = parseFloat(document.getElementById('gasto-monto').value);
+      gastos.unshift({ fecha: new Date().toLocaleDateString(), concepto, monto });
+      localStorage.setItem('pos_gst', JSON.stringify(gastos));
+      e.target.reset(); renderGastos(); updateDashboard();
+    }
+
+    function renderGastos() {
+      const lista = document.getElementById('lista-gastos');
+      lista.innerHTML = '';
+      gastos.forEach(g => {
+        const item = document.createElement('div');
+        item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
+        item.innerHTML = `<span>${g.concepto} (${g.fecha})</span><span class="font-bold text-red-500">-$${g.monto.toFixed(2)}</span>`;
+        lista.appendChild(item);
+      });
+    }
+
+    function renderVentas() {
+      const lista = document.getElementById('lista-ventas');
+      lista.innerHTML = '';
+      ventas.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'p-2 bg-gray-50 rounded-xl border text-xs space-y-0.5';
+        item.innerHTML = `<div class="flex justify-between font-bold"><span>${v.cantidad}x ${v.producto}</span><span>$${v.ingreso.toFixed(2)}</span></div>
+        <div class="flex justify-between text-[9px] text-gray-500"><span>${v.fecha}</span><span class="text-blue-600">Reinv: $${v.reinversion.toFixed(2)}</span><span class="text-emerald-600 font-bold">Gan: +$${v.gananciaBruta.toFixed(2)}</span></div>`;
+        lista.appendChild(item);
+      });
+    }
+
+    function updateDashboard() {
+      const totalIngresos = ventas.reduce((acc, v) => acc + v.ingreso, 0);
+      const totalReinversion = ventas.reduce((acc, v) => acc + v.reinversion, 0);
+      const totalGananciaBruta = ventas.reduce((acc, v) => acc + v.gananciaBruta, 0);
+      const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+      const gananciaNeta = totalGananciaBruta - totalGastos;
+
+      document.getElementById('dash-total-bruto').innerText = `$${totalIngresos.toFixed(2)}`;
+      document.getElementById('dash-reinversion').innerText = `$${totalReinversion.toFixed(2)}`;
+      document.getElementById('dash-total-gastos').innerText = `$${totalGastos.toFixed(2)}`;
+      document.getElementById('dash-ganancia-neta').innerText = `$${gananciaNeta.toFixed(2)}`;
+      document.getElementById('dash-cant-ventas').innerText = ventas.length;
+    }
+
+    function exportarCSV() {
+      let csv = 'Fecha,Producto,Cantidad,Ingreso Total,Fondo Reinversion,Ganancia Bruta\n';
+      ventas.forEach(v => {
+        csv += `"${v.fecha}","${v.producto}",${v.cantidad},${v.ingreso},${v.reinversion},${v.gananciaBruta}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Reporte_Ventas_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function limpiarHistorial() {
+      if (confirm('¿Borrar historial de ventas?')) {
+        ventas = []; localStorage.setItem('pos_vts', JSON.stringify(ventas));
+        renderVentas(); updateDashboard();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
