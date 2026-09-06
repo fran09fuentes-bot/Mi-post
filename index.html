@@ -1,295 +1,800 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sistema POS y Arqueo de Caja</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi POS - Control Financiero Avanzado</title>
+  
+  <link rel="icon" type="image/png" href="icono-app.png">
+  <link rel="apple-touch-icon" href="icono-app.png">
 
-  <!-- Tailwind CSS para los estilos -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- React y React DOM -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <!-- Babel para procesar JSX en el navegador -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @media print {
+      body * { visibility: hidden; }
+      #modal-ticket-content, #modal-ticket-content * { visibility: visible; }
+      #modal-ticket-content { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+  </style>
 </head>
-<body class="bg-slate-100">
-  <div id="root"></div>
+<body class="bg-gray-100 text-gray-800 pb-20">
 
-  <!-- Código Principal en React -->
-  <script type="text/babel">
-    const { useState } = React;
+  <!-- Encabezado -->
+  <header class="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-lg flex items-center gap-2">
+        <i class="fa-solid fa-store text-emerald-400"></i> Mi POS Negocio
+      </h1>
+      <p class="text-xs text-gray-400">Sistema Integral de Gestión</p>
+    </div>
+    <div class="flex gap-1.5">
+      <button onclick="exportarCSV()" title="Exportar CSV" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 shadow">
+        <i class="fa-solid fa-file-excel"></i> CSV
+      </button>
+      <button onclick="descargarBackupJSON()" title="Respaldo JSON" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 shadow">
+        <i class="fa-solid fa-download"></i> Copia
+      </button>
+      <label title="Restaurar Copia" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 shadow cursor-pointer">
+        <i class="fa-solid fa-upload"></i>
+        <input type="file" id="input-restore" accept=".json" class="hidden" onchange="cargarBackupJSON(event)">
+      </label>
+    </div>
+  </header>
 
-    // Componente de Arqueo de Caja
-    function ArqueoCaja({ ventasDelDia = [], fondoInicial = 50.00, onGuardarCierre }) {
-      const [denominaciones, setDenominaciones] = useState({
-        b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b1: 0,
-        m1: 0, m025: 0, m010: 0, m005: 0, m001: 0,
-      });
+  <main class="p-4 max-w-lg mx-auto space-y-4">
 
-      const [observaciones, setObservaciones] = useState('');
+    <!-- Banner Alerta Stock Bajo -->
+    <div id="banner-stock-bajo" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-xl shadow-sm text-xs text-amber-900 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-600 text-base"></i>
+        <div>
+          <span class="font-bold" id="stock-alerta-count">0 productos</span> con stock crítico (&le; 3 unidades).
+        </div>
+      </div>
+      <button onclick="switchTab('inventario')" class="bg-amber-200 hover:bg-amber-300 px-2 py-1 rounded-lg text-[10px] font-bold text-amber-900">Ver</button>
+    </div>
 
-      const ventasEfectivo = ventasDelDia
-        .filter(v => v.metodoPago === 'efectivo')
-        .reduce((acc, v) => acc + v.total, 0);
+    <!-- Tarjetas Principales del Dashboard -->
+    <section class="grid grid-cols-2 gap-3">
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200">
+        <div class="flex items-center gap-1.5 text-emerald-600 mb-1">
+          <i class="fa-solid fa-chart-line text-xs"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider">Ganancia Neta</span>
+        </div>
+        <div id="dash-ganancia-neta" class="text-lg font-extrabold text-gray-900">$0.00</div>
+        <p class="text-[9px] text-gray-400 mt-0.5">Utilidad real (menos gastos)</p>
+      </div>
 
-      const ventasTarjeta = ventasDelDia
-        .filter(v => v.metodoPago === 'tarjeta')
-        .reduce((acc, v) => acc + v.total, 0);
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200">
+        <div class="flex items-center gap-1.5 text-blue-600 mb-1">
+          <i class="fa-solid fa-piggy-bank text-xs"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider">Reinversión</span>
+        </div>
+        <div id="dash-reinversion" class="text-lg font-extrabold text-gray-900">$0.00</div>
+        <p class="text-[9px] text-gray-400 mt-0.5">Fondo reposición (No tocar)</p>
+      </div>
+    </section>
 
-      const ventasTransferencia = ventasDelDia
-        .filter(v => v.metodoPago === 'transferencia')
-        .reduce((acc, v) => acc + v.total, 0);
+    <!-- Resumen Ingresos y Gastos -->
+    <section class="bg-slate-900 text-white p-3.5 rounded-2xl shadow-md grid grid-cols-3 gap-2 text-center text-xs">
+      <div>
+        <span class="text-[10px] text-gray-400 block">Ventas Brutas</span>
+        <span id="dash-total-bruto" class="font-bold text-white text-sm">$0.00</span>
+      </div>
+      <div>
+        <span class="text-[10px] text-gray-400 block">Gastos Fijos</span>
+        <span id="dash-total-gastos" class="font-bold text-red-400 text-sm">$0.00</span>
+      </div>
+      <div>
+        <span class="text-[10px] text-gray-400 block">Ventas Reg.</span>
+        <span id="dash-cant-ventas" class="font-bold text-emerald-400 text-sm">0</span>
+      </div>
+    </section>
 
-      const totalVentasSistema = ventasEfectivo + ventasTarjeta + ventasTransferencia;
-      const efectivoEsperadoEnCaja = fondoInicial + ventasEfectivo;
+    <!-- Pestañas de Navegación -->
+    <div class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold overflow-x-auto hide-scrollbar">
+      <button id="tab-vender" onclick="switchTab('vender')" class="flex-1 py-2 px-2 rounded-lg bg-white shadow text-slate-900 transition whitespace-nowrap">
+        <i class="fa-solid fa-cart-plus"></i> Vender
+      </button>
+      <button id="tab-inventario" onclick="switchTab('inventario')" class="flex-1 py-2 px-2 rounded-lg text-gray-600 transition whitespace-nowrap">
+        <i class="fa-solid fa-boxes-stacked"></i> Productos
+      </button>
+      <button id="tab-gastos" onclick="switchTab('gastos')" class="flex-1 py-2 px-2 rounded-lg text-gray-600 transition whitespace-nowrap">
+        <i class="fa-solid fa-wallet"></i> Gastos
+      </button>
+      <button id="tab-historial" onclick="switchTab('historial')" class="flex-1 py-2 px-2 rounded-lg text-gray-600 transition whitespace-nowrap">
+        <i class="fa-solid fa-receipt"></i> Historial
+      </button>
+      <button id="tab-reportes" onclick="switchTab('reportes')" class="flex-1 py-2 px-2 rounded-lg text-gray-600 transition whitespace-nowrap">
+        <i class="fa-solid fa-chart-column"></i> Reportes
+      </button>
+    </div>
 
-      const calcularEfectivoFisico = () => {
-        return (
-          denominaciones.b100 * 100 +
-          denominaciones.b50 * 50 +
-          denominaciones.b20 * 20 +
-          denominaciones.b10 * 10 +
-          denominaciones.b5 * 5 +
-          denominaciones.b1 * 1 +
-          denominaciones.m1 * 1 +
-          denominaciones.m025 * 0.25 +
-          denominaciones.m010 * 0.10 +
-          denominaciones.m005 * 0.05 +
-          denominaciones.m001 * 0.01
-        );
-      };
+    <!-- SECCIÓN: REGISTRAR VENTA -->
+    <section id="sec-vender" class="space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
+          </h2>
+        </div>
 
-      const efectivoContado = calcularEfectivoFisico();
-      const diferencia = efectivoContado - efectivoEsperadoEnCaja;
+        <!-- Buscador en tiempo real -->
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+          <input type="text" id="input-buscar-prod" oninput="renderProductos()" placeholder="Buscar producto por nombre..." class="w-full pl-8 pr-3 py-1.5 text-xs border rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 bg-gray-50">
+        </div>
+        
+        <div id="grid-productos-venta" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto p-0.5 hide-scrollbar"></div>
 
-      const handleInputChange = (campo, valor) => {
-        const cant = parseInt(valor, 10) || 0;
-        setDenominaciones(prev => ({ ...prev, [campo]: cant < 0 ? 0 : cant }));
-      };
-
-      const handleFinalizarCierre = () => {
-        const resumenCierre = {
-          fecha: new Date().toISOString(),
-          fondoInicial,
-          ventasSistema: {
-            efectivo: ventasEfectivo,
-            tarjeta: ventasTarjeta,
-            transferencia: ventasTransferencia,
-            total: totalVentasSistema,
-          },
-          efectivoEsperado: efectivoEsperadoEnCaja,
-          efectivoContado,
-          diferencia,
-          estado: diferencia === 0 ? 'Cuadrado' : diferencia > 0 ? 'Sobrante' : 'Faltante',
-          observaciones,
-        };
-
-        if (onGuardarCierre) onGuardarCierre(resumenCierre);
-        alert('Cierre de caja registrado exitosamente.');
-      };
-
-      return (
-        <div className="max-w-5xl mx-auto p-6 bg-slate-50 min-h-screen text-slate-800 rounded-2xl shadow-sm">
-          <h1 className="text-2xl font-bold mb-6 text-slate-900">Arqueo y Cierre de Caja Diario</h1>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h2 className="text-lg font-semibold mb-4 text-slate-700 border-b pb-2">1. Conteo de Efectivo Físico</h2>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium text-sm text-slate-500 mb-3">Billetes</h3>
-                  {[
-                    { label: '$100.00', key: 'b100' },
-                    { label: '$50.00', key: 'b50' },
-                    { label: '$20.00', key: 'b20' },
-                    { label: '$10.00', key: 'b10' },
-                    { label: '$5.00', key: 'b5' },
-                    { label: '$1.00', key: 'b1' },
-                  ].map(item => (
-                    <div key={item.key} className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">{item.label}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={denominaciones[item.key] || ''}
-                        onChange={e => handleInputChange(item.key, e.target.value)}
-                        className="w-20 p-1 border rounded text-right focus:ring-2 focus:ring-indigo-500"
-                        placeholder="0"
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <h3 className="font-medium text-sm text-slate-500 mb-3">Monedas</h3>
-                  {[
-                    { label: '$1.00', key: 'm1' },
-                    { label: '$0.25', key: 'm025' },
-                    { label: '$0.10', key: 'm010' },
-                    { label: '$0.05', key: 'm005' },
-                    { label: '$0.01', key: 'm001' },
-                  ].map(item => (
-                    <div key={item.key} className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">{item.label}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={denominaciones[item.key] || ''}
-                        onChange={e => handleInputChange(item.key, e.target.value)}
-                        className="w-20 p-1 border rounded text-right focus:ring-2 focus:ring-indigo-500"
-                        placeholder="0"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t flex justify-between items-center bg-slate-100 p-3 rounded-lg">
-                <span className="font-semibold text-slate-700">Total Efectivo Contado:</span>
-                <span className="text-xl font-bold text-indigo-600">${efectivoContado.toFixed(2)}</span>
-              </div>
-
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-slate-600 mb-1">Notas / Observaciones:</label>
-                <textarea
-                  rows="2"
-                  value={observaciones}
-                  onChange={e => setObservaciones(e.target.value)}
-                  placeholder="Justificación de discrepancias o detalles..."
-                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2.5">
+          <div class="flex justify-between items-center text-xs text-gray-500">
+            <span>Seleccionado:</span>
+            <span id="cart-item-name" class="font-bold text-gray-800">Ninguno</span>
+          </div>
+          
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2 bg-white border rounded-xl p-1">
+              <button onclick="updateQty(-1)" class="w-7 h-7 rounded-lg bg-gray-100 font-bold text-gray-700 active:bg-gray-300">-</button>
+              <span id="cart-qty" class="w-5 text-center font-bold text-xs">1</span>
+              <button onclick="updateQty(1)" class="w-7 h-7 rounded-lg bg-gray-100 font-bold text-gray-700 active:bg-gray-300">+</button>
             </div>
+            
+            <div class="text-right">
+              <div class="text-[9px] text-gray-400">Total</div>
+              <div id="cart-total-price" class="text-base font-black text-emerald-600">$0.00</div>
+            </div>
+          </div>
 
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h2 className="text-lg font-semibold mb-4 text-slate-700 border-b pb-2">2. Resumen del Sistema</h2>
-                
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Fondo Inicial:</span>
-                    <span className="font-semibold">${fondoInicial.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Ventas Efectivo:</span>
-                    <span className="font-semibold">${ventasEfectivo.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Ventas Tarjeta:</span>
-                    <span className="font-semibold">${ventasTarjeta.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Ventas Transferencia:</span>
-                    <span className="font-semibold">${ventasTransferencia.toFixed(2)}</span>
-                  </div>
-                  <div className="pt-2 border-t flex justify-between font-bold text-slate-800">
-                    <span>Efectivo Esperado:</span>
-                    <span>${efectivoEsperadoEnCaja.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className={`p-6 rounded-xl border shadow-sm ${
-                diferencia === 0 
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
-                  : diferencia > 0 
-                  ? 'bg-blue-50 border-blue-200 text-blue-900' 
-                  : 'bg-rose-50 border-rose-200 text-rose-900'
-              }`}>
-                <h2 className="text-sm font-semibold uppercase mb-2">Resultado</h2>
-                <div className="flex justify-between items-baseline mb-2">
-                  <span className="text-2xl font-black">
-                    {diferencia === 0 ? 'CUADRADA' : diferencia > 0 ? 'SOBRANTE' : 'FALTANTE'}
-                  </span>
-                  <span className="text-2xl font-bold">
-                    ${Math.abs(diferencia).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={handleFinalizarCierre}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition-all"
-              >
-                Guardar Cierre
-              </button>
+          <!-- Opciones adicionales de cobro -->
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t text-xs">
+            <div>
+              <label class="text-[10px] text-gray-500 font-semibold block mb-1">Método de Pago</label>
+              <select id="venta-metodo-pago" class="w-full border rounded-lg p-1.5 text-xs bg-white outline-none">
+                <option value="Efectivo">💵 Efectivo</option>
+                <option value="Transferencia">🏦 Transferencia</option>
+                <option value="Tarjeta">💳 Tarjeta</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] text-gray-500 font-semibold block mb-1">Descuento ($)</label>
+              <input type="number" id="venta-descuento" min="0" step="0.01" value="0" oninput="updateCart()" placeholder="0.00" class="w-full border rounded-lg p-1.5 text-xs bg-white outline-none">
             </div>
           </div>
         </div>
-      );
-    }
 
-    // Aplicación Principal
-    function App() {
-      const [pantallaActual, setPantallaActual] = useState('arqueo');
-      const [ventasDelDia] = useState([
-        { id: 1, total: 25.50, metodoPago: 'efectivo' },
-        { id: 2, total: 12.00, metodoPago: 'tarjeta' },
-        { id: 3, total: 15.00, metodoPago: 'transferencia' },
-        { id: 4, total: 10.00, metodoPago: 'efectivo' },
-      ]);
+        <button onclick="completarVenta()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-3 rounded-xl font-bold text-xs shadow transition flex justify-center items-center gap-2">
+          <i class="fa-solid fa-check-circle"></i> Registrar Venta
+        </button>
+      </div>
+    </section>
 
-      return (
-        <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
-          <header className="bg-slate-900 text-white shadow-md">
-            <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-indigo-600 text-white p-2 rounded-lg font-black text-xl">POS</div>
-                <h1 className="text-xl font-bold">Sistema de Ventas e Inventario</h1>
-              </div>
+    <!-- SECCIÓN: INVENTARIO -->
+    <section id="sec-inventario" class="hidden space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider border-b pb-2">Nuevo Producto</h2>
+        <form onsubmit="guardarProducto(event)" class="space-y-2.5">
+          <input type="text" id="prod-nombre" required placeholder="Nombre del producto" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          <div class="grid grid-cols-3 gap-2">
+            <input type="number" step="0.01" id="prod-costo" required placeholder="Costo ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+            <input type="number" step="0.01" id="prod-precio" required placeholder="Precio ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+            <input type="number" id="prod-stock" required min="0" placeholder="Stock" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          </div>
+          <button type="submit" class="w-full bg-slate-900 text-white py-2 rounded-xl text-xs font-bold shadow">Guardar Producto</button>
+        </form>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Catálogo e Inventario</h3>
+        <div id="lista-productos" class="space-y-1.5 max-h-56 overflow-y-auto"></div>
+      </div>
+    </section>
 
-              <nav className="flex gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
-                <button
-                  onClick={() => setPantallaActual('ventas')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${pantallaActual === 'ventas' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
-                >
-                  Ventas
-                </button>
-                <button
-                  onClick={() => setPantallaActual('inventario')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${pantallaActual === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
-                >
-                  Inventario
-                </button>
-                <button
-                  onClick={() => setPantallaActual('arqueo')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${pantallaActual === 'arqueo' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
-                >
-                  Arqueo de Caja
-                </button>
-              </nav>
-            </div>
-          </header>
+    <!-- SECCIÓN: GASTOS -->
+    <section id="sec-gastos" class="hidden space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider border-b pb-2">Registrar Gasto Fijo / Operativo</h2>
+        <form onsubmit="guardarGasto(event)" class="space-y-2.5">
+          <input type="text" id="gasto-concepto" required placeholder="Concepto (ej. Alquiler, Internet, Publicidad)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          <input type="number" step="0.01" id="gasto-monto" required placeholder="Monto ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          <button type="submit" class="w-full bg-red-600 text-white py-2 rounded-xl text-xs font-bold shadow">Registrar Gasto</button>
+        </form>
+      </div>
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Lista de Gastos</h3>
+        <div id="lista-gastos" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+      </div>
+    </section>
 
-          <main className="py-6">
-            {pantallaActual === 'ventas' && (
-              <div className="max-w-5xl mx-auto p-6 bg-white rounded-xl shadow border">
-                <h2 className="text-2xl font-bold mb-2">Módulo de Ventas</h2>
-                <p>Aquí gestionas los cobros y registros del POS.</p>
-              </div>
-            )}
-
-            {pantallaActual === 'inventario' && (
-              <div className="max-w-5xl mx-auto p-6 bg-white rounded-xl shadow border">
-                <h2 className="text-2xl font-bold mb-2">Gestión de Inventario</h2>
-                <p>Aquí gestionas tu catálogo de productos.</p>
-              </div>
-            )}
-
-            {pantallaActual === 'arqueo' && (
-              <ArqueoCaja ventasDelDia={ventasDelDia} fondoInicial={50.00} />
-            )}
-          </main>
+    <!-- SECCIÓN: HISTORIAL CON FILTRO -->
+    <section id="sec-historial" class="hidden space-y-3">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider">Historial de Ventas</h2>
+          <button onclick="limpiarHistorial()" class="text-[10px] text-red-500 font-semibold hover:underline">Borrar todo</button>
         </div>
-      );
+
+        <!-- Filtro por rango de fecha -->
+        <div class="flex gap-1.5 bg-gray-100 p-1 rounded-xl text-xs">
+          <button id="filtro-hoy" onclick="filtrarHistorial('hoy')" class="flex-1 py-1 rounded-lg font-bold bg-white text-slate-900 shadow">Hoy</button>
+          <button id="filtro-mes" onclick="filtrarHistorial('mes')" class="flex-1 py-1 rounded-lg font-bold text-gray-500">Este Mes</button>
+          <button id="filtro-todo" onclick="filtrarHistorial('todo')" class="flex-1 py-1 rounded-lg font-bold text-gray-500">Todo</button>
+        </div>
+
+        <div id="lista-ventas" class="space-y-1.5 max-h-64 overflow-y-auto"></div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN: REPORTES MES A MES Y TOP PRODUCTOS -->
+    <section id="sec-reportes" class="hidden space-y-3">
+      <!-- Top 5 Productos -->
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-2">
+        <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider border-b pb-2 flex items-center gap-1.5">
+          <i class="fa-solid fa-trophy text-amber-500"></i> Top 5 Productos Más Vendidos
+        </h2>
+        <div id="top-productos-lista" class="space-y-1.5 text-xs"></div>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider">Cierre de Ventas Mes a Mes</h2>
+          <div class="flex gap-1 bg-gray-100 p-1 rounded-lg text-[10px]">
+            <button id="btnChartBar" onclick="toggleChartType('bar')" class="px-2 py-0.5 rounded font-bold bg-white text-slate-900 shadow-sm">Barras</button>
+            <button id="btnChartLine" onclick="toggleChartType('line')" class="px-2 py-0.5 rounded font-bold text-gray-500">Líneas</button>
+          </div>
+        </div>
+        
+        <div class="relative h-48 w-full">
+          <canvas id="chart-ventas-mes"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Resumen Mensual ($)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-500 border-b">
+              <tr>
+                <th class="py-2 px-2">Mes</th>
+                <th class="py-2 px-2 text-right">Ventas</th>
+                <th class="py-2 px-2 text-right">Cant.</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-ventas-mes" class="divide-y text-gray-700"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: TICKET DE VENTA -->
+  <div id="modal-ticket" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-4 max-w-xs w-full space-y-3 shadow-xl">
+      <div id="modal-ticket-content" class="text-xs space-y-2 border-b pb-3 font-mono">
+        <div class="text-center border-b pb-2">
+          <h2 class="font-bold text-sm">MI POS NEGOCIO</h2>
+          <p class="text-[10px] text-gray-500" id="t-fecha"></p>
+        </div>
+        <div class="space-y-1">
+          <div class="flex justify-between"><span id="t-prod"></span> <span id="t-cant"></span></div>
+          <div class="flex justify-between text-gray-500"><span>Método:</span> <span id="t-metodo"></span></div>
+          <div class="flex justify-between text-gray-500" id="t-row-desc"><span>Descuento:</span> <span id="t-desc"></span></div>
+        </div>
+        <div class="flex justify-between font-bold border-t pt-1 text-sm">
+          <span>TOTAL:</span>
+          <span id="t-total"></span>
+        </div>
+      </div>
+
+      <!-- Opciones de WhatsApp Directo a Número -->
+      <div class="no-print space-y-2 border-b pb-2">
+        <input type="tel" id="t-telefono-cliente" placeholder="Teléfono cliente (ej. 50370000000)" class="w-full border rounded-lg p-1.5 text-xs bg-gray-50 outline-none focus:ring-1 focus:ring-emerald-500">
+        <button onclick="enviarWhatsAppNumero()" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-1.5 rounded-xl font-bold text-xs flex justify-center items-center gap-1.5 shadow">
+          <i class="fa-brands fa-whatsapp"></i> Enviar a Número Directo
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 no-print">
+        <button onclick="window.print()" class="bg-slate-900 text-white py-2 rounded-xl font-bold text-xs flex justify-center items-center gap-1">
+          <i class="fa-solid fa-print"></i> Imprimir
+        </button>
+        <button onclick="enviarTicketWhatsApp()" class="bg-emerald-600 text-white py-2 rounded-xl font-bold text-xs flex justify-center items-center gap-1">
+          <i class="fa-brands fa-whatsapp"></i> WhatsApp General
+        </button>
+      </div>
+      <button onclick="cerrarTicket()" class="w-full bg-gray-200 text-gray-800 py-2 rounded-xl font-bold text-xs no-print">Cerrar</button>
+    </div>
+  </div>
+
+  <script>
+    let productos = JSON.parse(localStorage.getItem('pos_prods')) || [
+      { id: 1, nombre: 'Producto 1', costo: 5.00, precio: 10.00, stock: 10 },
+      { id: 2, nombre: 'Producto 2', costo: 8.00, precio: 15.00, stock: 5 }
+    ];
+    let ventas = JSON.parse(localStorage.getItem('pos_vts')) || [];
+    let gastos = JSON.parse(localStorage.getItem('pos_gst')) || [];
+    
+    let selectedProd = null;
+    let selectedQty = 1;
+    let filtroHistorialActual = 'hoy';
+    let ultimaVentaRegistrada = null;
+    
+    let salesChartInstance = null;
+    let currentChartType = 'bar';
+    const nombresMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    function init() {
+      productos.forEach(p => { if (p.stock === undefined) p.stock = 0; });
+      verificarAlertaStock();
+      renderProductos();
+      renderVentas();
+      renderGastos();
+      updateDashboard();
+      renderReportes();
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    function switchTab(tab) {
+      ['vender', 'inventario', 'gastos', 'historial', 'reportes'].forEach(t => {
+        document.getElementById(`sec-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).className = "flex-1 py-2 px-2 rounded-lg text-gray-600 transition whitespace-nowrap";
+      });
+      document.getElementById(`sec-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).className = "flex-1 py-2 px-2 rounded-lg bg-white shadow text-slate-900 font-bold transition whitespace-nowrap";
+
+      if (tab === 'reportes') {
+        renderReportes();
+      }
+    }
+
+    function verificarAlertaStock() {
+      const criticos = productos.filter(p => p.stock <= 3);
+      const banner = document.getElementById('banner-stock-bajo');
+      if (criticos.length > 0) {
+        banner.classList.remove('hidden');
+        document.getElementById('stock-alerta-count').innerText = `${criticos.length} ${criticos.length === 1 ? 'producto' : 'productos'}`;
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    function renderProductos() {
+      const grid = document.getElementById('grid-productos-venta');
+      const lista = document.getElementById('lista-productos');
+      const query = (document.getElementById('input-buscar-prod')?.value || '').toLowerCase();
+
+      grid.innerHTML = ''; lista.innerHTML = '';
+
+      productos.forEach(p => {
+        if (query && !p.nombre.toLowerCase().includes(query)) return;
+
+        const isSelected = selectedProd && selectedProd.id === p.id;
+        const stockColor = p.stock <= 0 ? 'bg-red-100 text-red-700' : (p.stock <= 3 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700');
+        const cardDisabled = p.stock <= 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
+
+        const card = document.createElement('div');
+        card.className = `p-2.5 rounded-xl border text-left transition ${cardDisabled} ${isSelected ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500' : 'border-gray-200 bg-gray-50'}`;
+        
+        card.onclick = () => { 
+          if (p.stock <= 0) return alert('Producto agotado sin existencias.');
+          selectedProd = p; 
+          selectedQty = 1; 
+          updateCart(); 
+          renderProductos(); 
+        };
+
+        card.innerHTML = `
+          <div class="font-bold text-xs truncate">${p.nombre}</div>
+          <div class="text-sm font-black text-emerald-600">$${p.precio.toFixed(2)}</div>
+          <div class="flex justify-between items-center mt-1">
+            <span class="text-[9px] text-gray-400">Costo: $${p.costo.toFixed(2)}</span>
+            <span class="text-[9px] px-1.5 py-0.5 rounded-md font-bold ${stockColor}">
+              ${p.stock > 0 ? 'Stock: ' + p.stock : 'Agotado'}
+            </span>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        const item = document.createElement('div');
+        item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
+        item.innerHTML = `
+          <div class="flex-1">
+            <span class="font-bold">${p.nombre}</span> 
+            <span class="text-[10px] text-gray-400 block">(C: $${p.costo.toFixed(2)} | V: $${p.precio.toFixed(2)})</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center border rounded-lg bg-white px-1">
+              <button onclick="ajustarStock(${p.id}, -1)" class="px-1 text-gray-500 font-bold">-</button>
+              <span class="px-1.5 font-bold ${p.stock <= 0 ? 'text-red-500' : 'text-gray-700'}">${p.stock}</span>
+              <button onclick="ajustarStock(${p.id}, 1)" class="px-1 text-gray-500 font-bold">+</button>
+            </div>
+            <button onclick="eliminarProducto(${p.id})" class="text-red-400 hover:text-red-600 text-xs ml-1"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `;
+        lista.appendChild(item);
+      });
+    }
+
+    function updateQty(delta) {
+      if (!selectedProd) return;
+      const newQty = selectedQty + delta;
+      if (newQty > selectedProd.stock) {
+        return alert(`Solo dispones de ${selectedProd.stock} unidades en stock.`);
+      }
+      selectedQty = Math.max(1, newQty);
+      updateCart();
+    }
+
+    function updateCart() {
+      if (!selectedProd) return;
+      const desc = parseFloat(document.getElementById('venta-descuento').value) || 0;
+      const totalBruto = selectedProd.precio * selectedQty;
+      const totalFinal = Math.max(0, totalBruto - desc);
+
+      document.getElementById('cart-item-name').innerText = selectedProd.nombre;
+      document.getElementById('cart-qty').innerText = selectedQty;
+      document.getElementById('cart-total-price').innerText = `$${totalFinal.toFixed(2)}`;
+    }
+
+    function completarVenta() {
+      if (!selectedProd) return alert('Selecciona un producto');
+      if (selectedQty > selectedProd.stock) return alert('No hay suficiente stock para esta venta.');
+
+      const descuento = parseFloat(document.getElementById('venta-descuento').value) || 0;
+      const metodoPago = document.getElementById('venta-metodo-pago').value;
+
+      const ingresoBruto = selectedProd.precio * selectedQty;
+      const ingresoNeto = Math.max(0, ingresoBruto - descuento);
+      const reinversion = selectedProd.costo * selectedQty;
+      const gananciaBruta = ingresoNeto - reinversion;
+
+      selectedProd.stock -= selectedQty;
+
+      const ahora = new Date();
+
+      ultimaVentaRegistrada = {
+        fecha: ahora.toLocaleDateString() + ' ' + ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        timestamp: ahora.getTime(),
+        mes: ahora.getMonth(),
+        producto: selectedProd.nombre,
+        cantidad: selectedQty,
+        ingreso: ingresoNeto,
+        descuento,
+        metodoPago,
+        reinversion, 
+        gananciaBruta
+      };
+
+      ventas.unshift(ultimaVentaRegistrada);
+
+      localStorage.setItem('pos_vts', JSON.stringify(ventas));
+      localStorage.setItem('pos_prods', JSON.stringify(productos));
+
+      selectedProd = null; 
+      document.getElementById('cart-item-name').innerText = 'Ninguno';
+      document.getElementById('cart-qty').innerText = '1';
+      document.getElementById('cart-total-price').innerText = '$0.00';
+      document.getElementById('venta-descuento').value = '0';
+
+      verificarAlertaStock();
+      renderProductos(); 
+      renderVentas(); 
+      updateDashboard();
+      abrirTicket(ultimaVentaRegistrada);
+    }
+
+    function abrirTicket(v) {
+      document.getElementById('t-fecha').innerText = v.fecha;
+      document.getElementById('t-prod').innerText = `${v.cantidad}x ${v.producto}`;
+      document.getElementById('t-cant').innerText = `$${v.ingreso.toFixed(2)}`;
+      document.getElementById('t-metodo').innerText = v.metodoPago;
+      
+      if (v.descuento > 0) {
+        document.getElementById('t-row-desc').classList.remove('hidden');
+        document.getElementById('t-desc').innerText = `-$${v.descuento.toFixed(2)}`;
+      } else {
+        document.getElementById('t-row-desc').classList.add('hidden');
+      }
+
+      document.getElementById('t-total').innerText = `$${v.ingreso.toFixed(2)}`;
+      document.getElementById('modal-ticket').classList.remove('hidden');
+    }
+
+    function cerrarTicket() {
+      document.getElementById('modal-ticket').classList.add('hidden');
+    }
+
+    function enviarTicketWhatsApp() {
+      if (!ultimaVentaRegistrada) return;
+      const v = ultimaVentaRegistrada;
+      const msg = `*COMPROBANTE DE VENTA*\n📅 Fecha: ${v.fecha}\n🛍️ Producto: ${v.cantidad}x ${v.producto}\n💳 Pago: ${v.metodoPago}\n💰 *TOTAL: $${v.ingreso.toFixed(2)}*\n\n¡Gracias por tu compra!`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function enviarWhatsAppNumero() {
+      if (!ultimaVentaRegistrada) return;
+      const telefonoInput = document.getElementById('t-telefono-cliente').value.trim();
+      if (!telefonoInput) {
+        return alert('Ingresa un número de teléfono con código de país (ejemplo: 50370000000).');
+      }
+      const telefonoLimpio = telefonoInput.replace(/[^0-9]/g, '');
+      const v = ultimaVentaRegistrada;
+      const msg = `*COMPROBANTE DE VENTA*\n📅 Fecha: ${v.fecha}\n🛍️ Producto: ${v.cantidad}x ${v.producto}\n💳 Pago: ${v.metodoPago}\n💰 *TOTAL: $${v.ingreso.toFixed(2)}*\n\n¡Gracias por tu compra!`;
+      window.open(`https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function guardarProducto(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('prod-nombre').value;
+      const costo = parseFloat(document.getElementById('prod-costo').value);
+      const precio = parseFloat(document.getElementById('prod-precio').value);
+      const stock = parseInt(document.getElementById('prod-stock').value);
+
+      productos.push({ id: Date.now(), nombre, costo, precio, stock });
+      localStorage.setItem('pos_prods', JSON.stringify(productos));
+      e.target.reset(); 
+      verificarAlertaStock();
+      renderProductos(); 
+      switchTab('vender');
+    }
+
+    function ajustarStock(id, cantidad) {
+      const prod = productos.find(p => p.id === id);
+      if (prod) {
+        prod.stock = Math.max(0, prod.stock + cantidad);
+        localStorage.setItem('pos_prods', JSON.stringify(productos));
+        verificarAlertaStock();
+        renderProductos();
+      }
+    }
+
+    function eliminarProducto(id) {
+      if (confirm('¿Deseas eliminar este producto del inventario?')) {
+        productos = productos.filter(p => p.id !== id);
+        if (selectedProd && selectedProd.id === id) selectedProd = null;
+        localStorage.setItem('pos_prods', JSON.stringify(productos));
+        verificarAlertaStock();
+        renderProductos();
+      }
+    }
+
+    function guardarGasto(e) {
+      e.preventDefault();
+      const concepto = document.getElementById('gasto-concepto').value;
+      const monto = parseFloat(document.getElementById('gasto-monto').value);
+      gastos.unshift({ fecha: new Date().toLocaleDateString(), concepto, monto });
+      localStorage.setItem('pos_gst', JSON.stringify(gastos));
+      e.target.reset(); 
+      renderGastos(); 
+      updateDashboard();
+    }
+
+    function renderGastos() {
+      const lista = document.getElementById('lista-gastos');
+      lista.innerHTML = '';
+      gastos.forEach(g => {
+        const item = document.createElement('div');
+        item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
+        item.innerHTML = `<span>${g.concepto} (${g.fecha})</span><span class="font-bold text-red-500">-$${g.monto.toFixed(2)}</span>`;
+        lista.appendChild(item);
+      });
+    }
+
+    function filtrarHistorial(tipo) {
+      filtroHistorialActual = tipo;
+      ['hoy', 'mes', 'todo'].forEach(t => {
+        const btn = document.getElementById(`filtro-${t}`);
+        if (t === tipo) {
+          btn.className = "flex-1 py-1 rounded-lg font-bold bg-white text-slate-900 shadow";
+        } else {
+          btn.className = "flex-1 py-1 rounded-lg font-bold text-gray-500";
+        }
+      });
+      renderVentas();
+    }
+
+    function renderVentas() {
+      const lista = document.getElementById('lista-ventas');
+      lista.innerHTML = '';
+
+      const ahora = new Date();
+      const hoyStr = ahora.toLocaleDateString();
+      const mesActual = ahora.getMonth();
+
+      const ventasFiltradas = ventas.filter(v => {
+        const d = new Date(v.timestamp || 0);
+        if (filtroHistorialActual === 'hoy') {
+          return d.toLocaleDateString() === hoyStr;
+        } else if (filtroHistorialActual === 'mes') {
+          return d.getMonth() === mesActual;
+        }
+        return true;
+      });
+
+      ventasFiltradas.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'p-2 bg-gray-50 rounded-xl border text-xs space-y-0.5';
+        item.innerHTML = `
+          <div class="flex justify-between font-bold">
+            <span>${v.cantidad}x ${v.producto}</span>
+            <span>$${v.ingreso.toFixed(2)}</span>
+          </div>
+          <div class="flex justify-between text-[9px] text-gray-500">
+            <span>${v.fecha} • <strong class="text-slate-700">${v.metodoPago || 'Efectivo'}</strong></span>
+            <span class="text-blue-600">Reinv: $${v.reinversion.toFixed(2)}</span>
+            <span class="text-emerald-600 font-bold">Gan: +$${v.gananciaBruta.toFixed(2)}</span>
+          </div>
+        `;
+        lista.appendChild(item);
+      });
+    }
+
+    function limpiarHistorial() {
+      if (confirm('¿Seguro que deseas borrar todo el historial de ventas?')) {
+        ventas = [];
+        localStorage.setItem('pos_vts', JSON.stringify(ventas));
+        renderVentas();
+        updateDashboard();
+        renderReportes();
+      }
+    }
+
+    function updateDashboard() {
+      const totalIngresos = ventas.reduce((acc, v) => acc + v.ingreso, 0);
+      const totalReinversion = ventas.reduce((acc, v) => acc + v.reinversion, 0);
+      const totalGananciaBruta = ventas.reduce((acc, v) => acc + v.gananciaBruta, 0);
+      const totalGastos = gastos.reduce((acc, g) => acc + g.monto, 0);
+      const gananciaNeta = totalGananciaBruta - totalGastos;
+
+      document.getElementById('dash-total-bruto').innerText = `$${totalIngresos.toFixed(2)}`;
+      document.getElementById('dash-reinversion').innerText = `$${totalReinversion.toFixed(2)}`;
+      document.getElementById('dash-total-gastos').innerText = `$${totalGastos.toFixed(2)}`;
+      document.getElementById('dash-ganancia-neta').innerText = `$${gananciaNeta.toFixed(2)}`;
+      document.getElementById('dash-cant-ventas').innerText = ventas.length;
+    }
+
+    function toggleChartType(type) {
+      currentChartType = type;
+      document.getElementById('btnChartBar').className = type === 'bar' ? "px-2 py-0.5 rounded font-bold bg-white text-slate-900 shadow-sm" : "px-2 py-0.5 rounded font-bold text-gray-500";
+      document.getElementById('btnChartLine').className = type === 'line' ? "px-2 py-0.5 rounded font-bold bg-white text-slate-900 shadow-sm" : "px-2 py-0.5 rounded font-bold text-gray-500";
+      renderReportes();
+    }
+
+    function renderReportes() {
+      const acumuladoMeses = Array(12).fill(0);
+      const conteoMeses = Array(12).fill(0);
+      const conteoProductos = {};
+
+      ventas.forEach(v => {
+        let m = v.mes;
+        if (m === undefined && v.timestamp) m = new Date(v.timestamp).getMonth();
+        if (m !== undefined && m >= 0 && m < 12) {
+          acumuladoMeses[m] += v.ingreso;
+          conteoMeses[m] += 1;
+        }
+
+        conteoProductos[v.producto] = (conteoProductos[v.producto] || 0) + v.cantidad;
+      });
+
+      // Top 5 Productos
+      const topList = document.getElementById('top-productos-lista');
+      topList.innerHTML = '';
+      const ordenados = Object.entries(conteoProductos).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      
+      if (ordenados.length === 0) {
+        topList.innerHTML = '<p class="text-gray-400 text-[11px]">Sin ventas registradas.</p>';
+      } else {
+        ordenados.forEach(([prod, cant], index) => {
+          const item = document.createElement('div');
+          item.className = 'flex justify-between items-center bg-gray-50 p-1.5 rounded-lg border text-xs';
+          item.innerHTML = `<span class="font-medium">${index + 1}. ${prod}</span><span class="font-bold text-emerald-600">${cant} unid.</span>`;
+          topList.appendChild(item);
+        });
+      }
+
+      // Tabla Resumen Mensual
+      const tabla = document.getElementById('tabla-ventas-mes');
+      tabla.innerHTML = '';
+      nombresMeses.forEach((mes, idx) => {
+        if (acumuladoMeses[idx] > 0 || conteoMeses[idx] > 0) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="py-1.5 px-2 font-medium">${mes}</td>
+            <td class="py-1.5 px-2 text-right font-bold text-emerald-600">$${acumuladoMeses[idx].toFixed(2)}</td>
+            <td class="py-1.5 px-2 text-right text-gray-500">${conteoMeses[idx]}</td>
+          `;
+          tabla.appendChild(tr);
+        }
+      });
+
+      // Gráfica Chart.js
+      const ctx = document.getElementById('chart-ventas-mes')?.getContext('2d');
+      if (!ctx) return;
+
+      if (salesChartInstance) salesChartInstance.destroy();
+
+      salesChartInstance = new Chart(ctx, {
+        type: currentChartType,
+        data: {
+          labels: nombresMeses,
+          datasets: [{
+            label: 'Ventas ($)',
+            data: acumuladoMeses,
+            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+            borderColor: '#10b981',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { font: { size: 9 } } },
+            x: { ticks: { font: { size: 9 } } }
+          }
+        }
+      });
+    }
+
+    function exportarCSV() {
+      if (ventas.length === 0) return alert('No hay ventas para exportar.');
+      let csv = 'Fecha,Producto,Cantidad,MetodoPago,Ingreso,Reinversion,GananciaBruta\n';
+      ventas.forEach(v => {
+        csv += `"${v.fecha}","${v.producto}",${v.cantidad},"${v.metodoPago || 'Efectivo'}",${v.ingreso.toFixed(2)},${v.reinversion.toFixed(2)},${v.gananciaBruta.toFixed(2)}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Ventas_POS_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+    }
+
+    function descargarBackupJSON() {
+      const data = { productos, ventas, gastos };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Backup_POS_${new Date().toISOString().slice(0,10)}.json`;
+      link.click();
+    }
+
+    function cargarBackupJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (data.productos && data.ventas && data.gastos) {
+            productos = data.productos;
+            ventas = data.ventas;
+            gastos = data.gastos;
+            localStorage.setItem('pos_prods', JSON.stringify(productos));
+            localStorage.setItem('pos_vts', JSON.stringify(ventas));
+            localStorage.setItem('pos_gst', JSON.stringify(gastos));
+            init();
+            alert('¡Copia de seguridad restaurada con éxito!');
+          } else {
+            alert('El archivo no tiene el formato correcto.');
+          }
+        } catch(err) {
+          alert('Error al leer el archivo JSON.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.onload = init;
   </script>
 </body>
 </html>
