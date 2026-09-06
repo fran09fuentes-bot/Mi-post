@@ -1,105 +1,295 @@
-import React, { useState } from 'react';
-import ArqueoCaja from './ArqueoCaja.jsx';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema POS y Arqueo de Caja</title>
 
-export default function App() {
-  // Estado para controlar qué pantalla/sección se muestra
-  const [pantallaActual, setPantallaActual] = useState('arqueo');
+  <!-- Tailwind CSS para los estilos -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-  // Estado para registrar las ventas realizadas en la jornada
-  const [ventasDelDia, setVentasDelDia] = useState([
-    // Ejemplos de ventas de prueba para verificar el cálculo:
-    { id: 1, total: 25.50, metodoPago: 'efectivo' },
-    { id: 2, total: 12.00, metodoPago: 'tarjeta' },
-    { id: 3, total: 15.00, metodoPago: 'transferencia' },
-    { id: 4, total: 10.00, metodoPago: 'efectivo' },
-  ]);
+  <!-- React y React DOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  // Fondo inicial en efectivo asignado a la caja al abrir el día
-  const [fondoInicial, setFondoInicial] = useState(50.00);
+  <!-- Babel para procesar JSX en el navegador -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-100">
+  <div id="root"></div>
 
-  // Función para procesar cuando se guarda un cierre desde la pantalla de arqueo
-  const handleGuardarCierre = (resumenCierre) => {
-    console.log('Cierre de caja registrado exitosamente:', resumenCierre);
-    // Aquí puedes llamar a tu API de Supabase para guardar el registro en la base de datos
-  };
+  <!-- Código Principal en React -->
+  <script type="text/babel">
+    const { useState } = React;
 
-  return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
-      {/* 1. Barra de Navegación Superior */}
-      <header className="bg-slate-900 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 text-white p-2 rounded-lg font-black text-xl">
-              POS
+    // Componente de Arqueo de Caja
+    function ArqueoCaja({ ventasDelDia = [], fondoInicial = 50.00, onGuardarCierre }) {
+      const [denominaciones, setDenominaciones] = useState({
+        b100: 0, b50: 0, b20: 0, b10: 0, b5: 0, b1: 0,
+        m1: 0, m025: 0, m010: 0, m005: 0, m001: 0,
+      });
+
+      const [observaciones, setObservaciones] = useState('');
+
+      const ventasEfectivo = ventasDelDia
+        .filter(v => v.metodoPago === 'efectivo')
+        .reduce((acc, v) => acc + v.total, 0);
+
+      const ventasTarjeta = ventasDelDia
+        .filter(v => v.metodoPago === 'tarjeta')
+        .reduce((acc, v) => acc + v.total, 0);
+
+      const ventasTransferencia = ventasDelDia
+        .filter(v => v.metodoPago === 'transferencia')
+        .reduce((acc, v) => acc + v.total, 0);
+
+      const totalVentasSistema = ventasEfectivo + ventasTarjeta + ventasTransferencia;
+      const efectivoEsperadoEnCaja = fondoInicial + ventasEfectivo;
+
+      const calcularEfectivoFisico = () => {
+        return (
+          denominaciones.b100 * 100 +
+          denominaciones.b50 * 50 +
+          denominaciones.b20 * 20 +
+          denominaciones.b10 * 10 +
+          denominaciones.b5 * 5 +
+          denominaciones.b1 * 1 +
+          denominaciones.m1 * 1 +
+          denominaciones.m025 * 0.25 +
+          denominaciones.m010 * 0.10 +
+          denominaciones.m005 * 0.05 +
+          denominaciones.m001 * 0.01
+        );
+      };
+
+      const efectivoContado = calcularEfectivoFisico();
+      const diferencia = efectivoContado - efectivoEsperadoEnCaja;
+
+      const handleInputChange = (campo, valor) => {
+        const cant = parseInt(valor, 10) || 0;
+        setDenominaciones(prev => ({ ...prev, [campo]: cant < 0 ? 0 : cant }));
+      };
+
+      const handleFinalizarCierre = () => {
+        const resumenCierre = {
+          fecha: new Date().toISOString(),
+          fondoInicial,
+          ventasSistema: {
+            efectivo: ventasEfectivo,
+            tarjeta: ventasTarjeta,
+            transferencia: ventasTransferencia,
+            total: totalVentasSistema,
+          },
+          efectivoEsperado: efectivoEsperadoEnCaja,
+          efectivoContado,
+          diferencia,
+          estado: diferencia === 0 ? 'Cuadrado' : diferencia > 0 ? 'Sobrante' : 'Faltante',
+          observaciones,
+        };
+
+        if (onGuardarCierre) onGuardarCierre(resumenCierre);
+        alert('Cierre de caja registrado exitosamente.');
+      };
+
+      return (
+        <div className="max-w-5xl mx-auto p-6 bg-slate-50 min-h-screen text-slate-800 rounded-2xl shadow-sm">
+          <h1 className="text-2xl font-bold mb-6 text-slate-900">Arqueo y Cierre de Caja Diario</h1>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <h2 className="text-lg font-semibold mb-4 text-slate-700 border-b pb-2">1. Conteo de Efectivo Físico</h2>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-medium text-sm text-slate-500 mb-3">Billetes</h3>
+                  {[
+                    { label: '$100.00', key: 'b100' },
+                    { label: '$50.00', key: 'b50' },
+                    { label: '$20.00', key: 'b20' },
+                    { label: '$10.00', key: 'b10' },
+                    { label: '$5.00', key: 'b5' },
+                    { label: '$1.00', key: 'b1' },
+                  ].map(item => (
+                    <div key={item.key} className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">{item.label}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={denominaciones[item.key] || ''}
+                        onChange={e => handleInputChange(item.key, e.target.value)}
+                        className="w-20 p-1 border rounded text-right focus:ring-2 focus:ring-indigo-500"
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <h3 className="font-medium text-sm text-slate-500 mb-3">Monedas</h3>
+                  {[
+                    { label: '$1.00', key: 'm1' },
+                    { label: '$0.25', key: 'm025' },
+                    { label: '$0.10', key: 'm010' },
+                    { label: '$0.05', key: 'm005' },
+                    { label: '$0.01', key: 'm001' },
+                  ].map(item => (
+                    <div key={item.key} className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">{item.label}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={denominaciones[item.key] || ''}
+                        onChange={e => handleInputChange(item.key, e.target.value)}
+                        className="w-20 p-1 border rounded text-right focus:ring-2 focus:ring-indigo-500"
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t flex justify-between items-center bg-slate-100 p-3 rounded-lg">
+                <span className="font-semibold text-slate-700">Total Efectivo Contado:</span>
+                <span className="text-xl font-bold text-indigo-600">${efectivoContado.toFixed(2)}</span>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-600 mb-1">Notas / Observaciones:</label>
+                <textarea
+                  rows="2"
+                  value={observaciones}
+                  onChange={e => setObservaciones(e.target.value)}
+                  placeholder="Justificación de discrepancias o detalles..."
+                  className="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Sistema de Ventas e Inventario</h1>
+
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 className="text-lg font-semibold mb-4 text-slate-700 border-b pb-2">2. Resumen del Sistema</h2>
+                
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Fondo Inicial:</span>
+                    <span className="font-semibold">${fondoInicial.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Ventas Efectivo:</span>
+                    <span className="font-semibold">${ventasEfectivo.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Ventas Tarjeta:</span>
+                    <span className="font-semibold">${ventasTarjeta.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Ventas Transferencia:</span>
+                    <span className="font-semibold">${ventasTransferencia.toFixed(2)}</span>
+                  </div>
+                  <div className="pt-2 border-t flex justify-between font-bold text-slate-800">
+                    <span>Efectivo Esperado:</span>
+                    <span>${efectivoEsperadoEnCaja.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`p-6 rounded-xl border shadow-sm ${
+                diferencia === 0 
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                  : diferencia > 0 
+                  ? 'bg-blue-50 border-blue-200 text-blue-900' 
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}>
+                <h2 className="text-sm font-semibold uppercase mb-2">Resultado</h2>
+                <div className="flex justify-between items-baseline mb-2">
+                  <span className="text-2xl font-black">
+                    {diferencia === 0 ? 'CUADRADA' : diferencia > 0 ? 'SOBRANTE' : 'FALTANTE'}
+                  </span>
+                  <span className="text-2xl font-bold">
+                    ${Math.abs(diferencia).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleFinalizarCierre}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition-all"
+              >
+                Guardar Cierre
+              </button>
+            </div>
           </div>
-
-          {/* Menú de cambio de pantallas */}
-          <nav className="flex gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
-            <button
-              onClick={() => setPantallaActual('ventas')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                pantallaActual === 'ventas'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700'
-              }`}
-            >
-              Ventas
-            </button>
-
-            <button
-              onClick={() => setPantallaActual('inventario')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                pantallaActual === 'inventario'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700'
-              }`}
-            >
-              Inventario
-            </button>
-
-            <button
-              onClick={() => setPantallaActual('arqueo')}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                pantallaActual === 'arqueo'
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-700'
-              }`}
-            >
-              Arqueo de Caja
-            </button>
-          </nav>
         </div>
-      </header>
+      );
+    }
 
-      {/* 2. Área de Contenido Principal (Renderizado Condicional) */}
-      <main className="py-6">
-        {pantallaActual === 'ventas' && (
-          <div className="max-w-5xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-slate-200">
-            <h2 className="text-2xl font-bold mb-4">Módulo de Ventas / Registro POS</h2>
-            <p className="text-slate-600 mb-4">Aquí va tu pantalla de ventas e ingreso de cobros.</p>
-            <div className="p-4 bg-slate-50 border rounded-lg text-sm text-slate-700">
-              <span className="font-semibold">Ventas del día cargadas:</span> {ventasDelDia.length} transacciones.
+    // Aplicación Principal
+    function App() {
+      const [pantallaActual, setPantallaActual] = useState('arqueo');
+      const [ventasDelDia] = useState([
+        { id: 1, total: 25.50, metodoPago: 'efectivo' },
+        { id: 2, total: 12.00, metodoPago: 'tarjeta' },
+        { id: 3, total: 15.00, metodoPago: 'transferencia' },
+        { id: 4, total: 10.00, metodoPago: 'efectivo' },
+      ]);
+
+      return (
+        <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
+          <header className="bg-slate-900 text-white shadow-md">
+            <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-600 text-white p-2 rounded-lg font-black text-xl">POS</div>
+                <h1 className="text-xl font-bold">Sistema de Ventas e Inventario</h1>
+              </div>
+
+              <nav className="flex gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+                <button
+                  onClick={() => setPantallaActual('ventas')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${pantallaActual === 'ventas' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
+                >
+                  Ventas
+                </button>
+                <button
+                  onClick={() => setPantallaActual('inventario')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${pantallaActual === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
+                >
+                  Inventario
+                </button>
+                <button
+                  onClick={() => setPantallaActual('arqueo')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium ${pantallaActual === 'arqueo' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}
+                >
+                  Arqueo de Caja
+                </button>
+              </nav>
             </div>
-          </div>
-        )}
+          </header>
 
-        {pantallaActual === 'inventario' && (
-          <div className="max-w-5xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-slate-200">
-            <h2 className="text-2xl font-bold mb-4">Gestión de Inventario</h2>
-            <p className="text-slate-600">Aquí se muestra tu catálogo de productos y control de existencias.</p>
-          </div>
-        )}
+          <main className="py-6">
+            {pantallaActual === 'ventas' && (
+              <div className="max-w-5xl mx-auto p-6 bg-white rounded-xl shadow border">
+                <h2 className="text-2xl font-bold mb-2">Módulo de Ventas</h2>
+                <p>Aquí gestionas los cobros y registros del POS.</p>
+              </div>
+            )}
 
-        {pantallaActual === 'arqueo' && (
-          <ArqueoCaja
-            ventasDelDia={ventasDelDia}
-            fondoInicial={fondoInicial}
-            onGuardarCierre={handleGuardarCierre}
-          />
-        )}
-      </main>
-    </div>
-  );
-}
+            {pantallaActual === 'inventario' && (
+              <div className="max-w-5xl mx-auto p-6 bg-white rounded-xl shadow border">
+                <h2 className="text-2xl font-bold mb-2">Gestión de Inventario</h2>
+                <p>Aquí gestionas tu catálogo de productos.</p>
+              </div>
+            )}
+
+            {pantallaActual === 'arqueo' && (
+              <ArqueoCaja ventasDelDia={ventasDelDia} fondoInicial={50.00} />
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
