@@ -137,7 +137,7 @@
           <div class="grid grid-cols-3 gap-2">
             <input type="number" step="0.01" id="prod-costo" required placeholder="Costo ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
             <input type="number" step="0.01" id="prod-precio" required placeholder="Precio ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
-            <input type="number" id="prod-stock" required placeholder="Stock" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+            <input type="number" id="prod-stock" placeholder="Stock" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
           </div>
           <button type="submit" class="w-full bg-slate-900 text-white py-2 rounded-xl text-xs font-bold shadow">Guardar Producto</button>
         </form>
@@ -149,12 +149,11 @@
       </div>
     </section>
 
-    <!-- SECCIÓN: GASTOS (CON OPCIÓN DE BORRAR Y TIPO DE GASTO) -->
+    <!-- SECCIÓN: GASTOS -->
     <section id="sec-gastos" class="hidden space-y-3">
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
         <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider border-b pb-2">Registrar Gasto Fijo / Operativo</h2>
         <form onsubmit="guardarGasto(event)" class="space-y-2.5">
-          <!-- Selector de Operativo vs Reinversión -->
           <div class="flex gap-2 p-1 bg-gray-100 rounded-xl text-xs">
             <button type="button" id="btn-tipo-operativo" onclick="setGastoTipo('OPERATIVO')" class="flex-1 py-1.5 font-bold rounded-lg bg-white text-slate-800 shadow-sm">Gasto Operativo</button>
             <button type="button" id="btn-tipo-reinversion" onclick="setGastoTipo('REINVERSION')" class="flex-1 py-1.5 font-bold rounded-lg text-gray-500">Reinversión</button>
@@ -186,12 +185,21 @@
   </main>
 
   <script>
+    // Recupera usando estrictamente las claves de memoria originales
     let productos = JSON.parse(localStorage.getItem('pos_prods')) || [
       { id: 1, nombre: 'Producto 1', costo: 5.00, precio: 10.00, stock: 10 },
       { id: 2, nombre: 'Producto 2', costo: 8.00, precio: 15.00, stock: 2 }
     ];
     let ventas = JSON.parse(localStorage.getItem('pos_vts')) || [];
     let gastos = JSON.parse(localStorage.getItem('pos_gst')) || [];
+
+    // Migración transparente si existen datos en la otra clave
+    const gastosAlternativos = JSON.parse(localStorage.getItem('mi_pos_gastos'));
+    if (gastosAlternativos && gastosAlternativos.length > 0) {
+      gastos = [...gastos, ...gastosAlternativos];
+      localStorage.setItem('pos_gst', JSON.stringify(gastos));
+      localStorage.removeItem('mi_pos_gastos');
+    }
     
     let selectedProd = null;
     let selectedQty = 1;
@@ -235,7 +243,7 @@
       let criticos = 0;
 
       productos.forEach(p => {
-        if (p.stock <= 3) criticos++;
+        if (p.stock !== undefined && p.stock <= 3) criticos++;
 
         const isSelected = selectedProd && selectedProd.id === p.id;
         const card = document.createElement('div');
@@ -246,7 +254,7 @@
 
         const item = document.createElement('div');
         item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
-        item.innerHTML = `<div><span class="font-bold">${p.nombre}</span> <span class="text-[10px] text-gray-400">(C: $${p.costo.toFixed(2)} | V: $${p.precio.toFixed(2)} | Stock: ${p.stock ?? 'N/A'})</span></div><button onclick="eliminarProducto(${p.id})" class="text-red-400 hover:text-red-600 text-xs px-1"><i class="fa-solid fa-trash"></i></button>`;
+        item.innerHTML = `<div><span class="font-bold">${p.nombre}</span> <span class="text-[10px] text-gray-400">(C: $${p.costo.toFixed(2)} | V: $${p.precio.toFixed(2)})</span></div><button onclick="eliminarProducto(${p.id})" class="text-red-400 hover:text-red-600 text-xs px-1"><i class="fa-solid fa-trash"></i></button>`;
         lista.appendChild(item);
       });
 
@@ -275,21 +283,20 @@
 
     function completarVenta() {
       if (!selectedProd) return alert('Selecciona un producto');
-      const total = selectedProd.precio * selectedQty;
-      const costoTotal = selectedProd.costo * selectedQty;
-      
-      const venta = {
-        id: Date.now(),
-        producto: selectedProd.nombre,
-        cant: selectedQty,
-        total: total,
-        costo: costoTotal,
-        fecha: new Date().toLocaleDateString('es-SV')
-      };
+      const ingreso = selectedProd.precio * selectedQty;
+      const reinversion = selectedProd.costo * selectedQty;
+      const gananciaBruta = ingreso - reinversion;
 
-      ventas.unshift(venta);
-      
-      // Descontar stock
+      ventas.unshift({
+        fecha: new Date().toLocaleDateString('es-SV') + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        producto: selectedProd.nombre,
+        cantidad: selectedQty,
+        ingreso, 
+        reinversion, 
+        gananciaBruta
+      });
+
+      // Descontar stock si existe
       const prodIndex = productos.findIndex(p => p.id === selectedProd.id);
       if (prodIndex !== -1 && productos[prodIndex].stock !== undefined) {
         productos[prodIndex].stock = Math.max(0, productos[prodIndex].stock - selectedQty);
@@ -318,6 +325,7 @@
       
       e.target.reset();
       renderProductos();
+      switchTab('vender');
     }
 
     function eliminarProducto(id) {
@@ -352,10 +360,10 @@
       updateDashboard();
     }
 
-    // 🗑️ ELIMINAR GASTO INDIVIDUAL
+    // 🗑️ BORRAR GASTO INDIVIDUAL
     function eliminarGasto(id, concepto) {
       if (confirm(`¿Quieres eliminar el gasto "${concepto}"?`)) {
-        gastos = gastos.filter(g => g.id !== id);
+        gastos = gastos.filter(g => g.id !== id && g.concepto !== concepto);
         localStorage.setItem('pos_gst', JSON.stringify(gastos));
         renderGastos();
         updateDashboard();
@@ -369,7 +377,8 @@
         lista.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No hay gastos registrados.</p>';
         return;
       }
-      gastos.forEach(g => {
+      gastos.forEach((g, index) => {
+        const idGasto = g.id || index;
         const item = document.createElement('div');
         item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
         item.innerHTML = `
@@ -380,8 +389,8 @@
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <span class="font-bold text-red-500">-$${g.monto.toFixed(2)}</span>
-            <button onclick="eliminarGasto(${g.id}, '${g.concepto.replace(/'/g, "\\'")}')" class="text-red-400 hover:text-red-600 p-1 text-xs" title="Borrar gasto">
+            <span class="font-bold text-red-500">-$${Number(g.monto).toFixed(2)}</span>
+            <button onclick="eliminarGasto(${idGasto}, '${(g.concepto || '').replace(/'/g, "\\'")}')" class="text-red-400 hover:text-red-600 p-1 text-xs" title="Borrar gasto">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
@@ -399,14 +408,23 @@
       }
       ventas.forEach(v => {
         const item = document.createElement('div');
-        item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
-        item.innerHTML = `<div><span class="font-bold">${v.producto}</span> <span class="text-gray-400">x${v.cant}</span></div><div class="font-bold text-emerald-600">+$${v.total.toFixed(2)}</div>`;
+        item.className = 'p-2 bg-gray-50 rounded-xl border text-xs space-y-0.5';
+        item.innerHTML = `
+          <div class="flex justify-between font-bold">
+            <span>${v.cantidad || v.cant || 1}x ${v.producto}</span>
+            <span>+$${(v.ingreso || v.total || 0).toFixed(2)}</span>
+          </div>
+          <div class="flex justify-between text-[9px] text-gray-500">
+            <span>${v.fecha || ''}</span>
+            <span class="text-blue-600">Reinv: $${(v.reinversion || 0).toFixed(2)}</span>
+            <span class="text-emerald-600 font-bold">Gan: +$${(v.gananciaBruta || 0).toFixed(2)}</span>
+          </div>`;
         lista.appendChild(item);
       });
     }
 
     function limpiarHistorial() {
-      if (confirm('¿Borrar todo el historial de ventas?')) {
+      if (confirm('¿Borrar historial de ventas?')) {
         ventas = [];
         localStorage.setItem('pos_vts', JSON.stringify(ventas));
         renderVentas();
@@ -415,49 +433,53 @@
     }
 
     function updateDashboard() {
-      const totalVentas = ventas.reduce((acc, v) => acc + (v.total || 0), 0);
+      const totalIngresos = ventas.reduce((acc, v) => acc + (v.ingreso || v.total || 0), 0);
+      const totalReinversionVentas = ventas.reduce((acc, v) => acc + (v.reinversion || 0), 0);
+      const totalGananciaBruta = ventas.reduce((acc, v) => acc + (v.gananciaBruta || 0), 0);
       
       const totalGastosFijos = gastos
         .filter(g => g.tipo === 'OPERATIVO' || !g.tipo)
         .reduce((acc, g) => acc + (g.monto || 0), 0);
 
-      const totalReinversion = gastos
+      const totalReinversionGastos = gastos
         .filter(g => g.tipo === 'REINVERSION')
         .reduce((acc, g) => acc + (g.monto || 0), 0);
 
-      const gananciaNeta = totalVentas - totalGastosFijos;
+      const gananciaNeta = totalGananciaBruta - totalGastosFijos;
+      const reinversionTotal = totalReinversionVentas + totalReinversionGastos;
 
-      document.getElementById('dash-ganancia-neta').innerText = `$${gananciaNeta.toFixed(2)}`;
-      document.getElementById('dash-reinversion').innerText = `$${totalReinversion.toFixed(2)}`;
-      document.getElementById('dash-total-bruto').innerText = `$${totalVentas.toFixed(2)}`;
+      document.getElementById('dash-total-bruto').innerText = `$${totalIngresos.toFixed(2)}`;
+      document.getElementById('dash-reinversion').innerText = `$${reinversionTotal.toFixed(2)}`;
       document.getElementById('dash-total-gastos').innerText = `$${totalGastosFijos.toFixed(2)}`;
+      document.getElementById('dash-ganancia-neta').innerText = `$${gananciaNeta.toFixed(2)}`;
       document.getElementById('dash-cant-ventas').innerText = ventas.length;
     }
 
     function exportarCSV() {
-      let csv = 'Tipo,Concepto/Producto,Monto/Total,Fecha\n';
-      ventas.forEach(v => csv += `Venta,${v.producto},$${v.total.toFixed(2)},${v.fecha}\n`);
-      gastos.forEach(g => csv += `${g.tipo === 'REINVERSION' ? 'Reinversion' : 'Gasto'},${g.concepto},$${g.monto.toFixed(2)},-\n`);
-
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
+      let csv = 'Fecha,Producto,Cantidad,Ingreso Total,Fondo Reinversion,Ganancia Bruta\n';
+      ventas.forEach(v => {
+        csv += `"${v.fecha || ''}","${v.producto}",${v.cantidad || 1},${v.ingreso || 0},${v.reinversion || 0},${v.gananciaBruta || 0}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `reporte_pos_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `Reporte_Ventas_${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
     }
 
     function copiarResumen() {
-      const totalVentas = ventas.reduce((acc, v) => acc + (v.total || 0), 0);
+      const totalIngresos = ventas.reduce((acc, v) => acc + (v.ingreso || v.total || 0), 0);
       const totalGastosFijos = gastos.filter(g => g.tipo === 'OPERATIVO' || !g.tipo).reduce((acc, g) => acc + (g.monto || 0), 0);
-      const gananciaNeta = totalVentas - totalGastosFijos;
+      const totalGananciaBruta = ventas.reduce((acc, v) => acc + (v.gananciaBruta || 0), 0);
+      const gananciaNeta = totalGananciaBruta - totalGastosFijos;
       
-      const resumen = `📊 RESUMEN MI POS\nVentas Brutas: $${totalVentas.toFixed(2)}\nGastos Fijos: $${totalGastosFijos.toFixed(2)}\nGanancia Neta: $${gananciaNeta.toFixed(2)}`;
+      const resumen = `📊 RESUMEN MI POS\nVentas Brutas: $${totalIngresos.toFixed(2)}\nGastos Fijos: $${totalGastosFijos.toFixed(2)}\nGanancia Neta: $${gananciaNeta.toFixed(2)}`;
       navigator.clipboard.writeText(resumen);
       alert('Resumen copiado al portapapeles');
     }
 
-    // Inicializar al cargar
+    // Inicialización
     init();
   </script>
 </body>
