@@ -11,14 +11,13 @@ export default function ArqueoCaja() {
   const [monto, setMonto] = useState('');
   const [tipoGasto, setTipoGasto] = useState('OPERATIVO');
 
-  // Cargar datos de localStorage
   useEffect(() => {
     const gastosGuardados = localStorage.getItem(STORAGE_GASTOS_KEY);
     if (gastosGuardados) {
       try {
         setGastos(JSON.parse(gastosGuardados));
       } catch (e) {
-        console.error('Error al cargar gastos', e);
+        console.error('Error al cargar gastos:', e);
       }
     }
 
@@ -27,12 +26,11 @@ export default function ArqueoCaja() {
       try {
         setVentasDelDia(JSON.parse(ventasGuardadas));
       } catch (e) {
-        console.error('Error al cargar ventas', e);
+        console.error('Error al cargar ventas:', e);
       }
     }
   }, []);
 
-  // Agregar Gasto o Reinversión
   const handleAgregarGasto = (e) => {
     e.preventDefault();
     if (!concepto || !monto || parseFloat(monto) <= 0) return;
@@ -56,16 +54,14 @@ export default function ArqueoCaja() {
     setTipoGasto('OPERATIVO');
   };
 
-  // 🗑️ FUNCIÓN PARA ELIMINAR UN GASTO
   const handleEliminarGasto = (idGasto, conceptoGasto) => {
-    if (window.confirm(`¿Quieres eliminar el gasto "${conceptoGasto}"?`)) {
+    if (window.confirm(`¿Quieres eliminar "${conceptoGasto}"?`)) {
       const listaFiltrada = gastos.filter((item) => item.id !== idGasto);
       setGastos(listaFiltrada);
       localStorage.setItem(STORAGE_GASTOS_KEY, JSON.stringify(listaFiltrada));
     }
   };
 
-  // Cálculos Financieros
   const totalVentasBrutas = ventasDelDia.reduce((acc, v) => acc + Number(v.total || v.monto || 0), 0);
 
   const totalGastosFijos = gastos
@@ -80,11 +76,10 @@ export default function ArqueoCaja() {
 
   return (
     <div className="max-w-xl mx-auto space-y-4">
-      {/* TARJETAS DE RESUMEN */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
           <span className="text-[11px] font-bold text-emerald-600 uppercase">📈 Ganancia Neta</span>
-          <div className={`text-2xl font-extrabold ${gananciaNeta < 0 ? 'text-slate-800' : 'text-slate-800'}`}>
+          <div className="text-2xl font-extrabold text-slate-800">
             ${gananciaNeta.toFixed(2)}
           </div>
           <p className="text-[10px] text-slate-400">Utilidad real (menos gastos)</p>
@@ -97,7 +92,6 @@ export default function ArqueoCaja() {
         </div>
       </div>
 
-      {/* METRICAS DE VENTAS Y GASTOS */}
       <div className="bg-slate-900 text-white p-3 rounded-xl flex justify-between text-center text-xs">
         <div>
           <p className="text-slate-400">Ventas Brutas</p>
@@ -113,7 +107,6 @@ export default function ArqueoCaja() {
         </div>
       </div>
 
-      {/* FORMULARIO */}
       <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-3">
           Registrar Gasto Fijo / Operativo
@@ -169,7 +162,6 @@ export default function ArqueoCaja() {
         </form>
       </div>
 
-      {/* LISTA DE GASTOS CON BOTÓN DE ELIMINAR */}
       <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-3">
           Lista de Gastos
@@ -200,27 +192,13 @@ export default function ArqueoCaja() {
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-red-500">-${Number(item.monto).toFixed(2)}</span>
 
-                  {/* 🗑️ BOTÓN ELIMINAR */}
                   <button
                     onClick={() => handleEliminarGasto(item.id, item.concepto)}
                     className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                     title="Borrar gasto"
                     type="button"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
+                    🗑️
                   </button>
                 </div>
               </div>
