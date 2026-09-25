@@ -11,39 +11,38 @@ let gastos = [];
 // Cargar todos los datos desde Supabase
 async function cargarDatosGlobales() {
   try {
-    const { data: prods } = await _supabase.from('productos').select('*');
+    const { data: prods, error: errP } = await _supabase.from('productos').select('*');
     if (prods) productos = prods;
 
-    const { data: vts } = await _supabase.from('ventas').select('*').order('created_at', { ascending: false });
+    const { data: vts, error: errV } = await _supabase.from('ventas').select('*').order('id', { ascending: false });
     if (vts) ventas = vts;
 
-    const { data: gst } = await _supabase.from('gastos').select('*').order('created_at', { ascending: false });
+    const { data: gst, error: errG } = await _supabase.from('gastos').select('*').order('id', { ascending: false });
     if (gst) gastos = gst;
 
     updateDashboard();
 
-    // Actualizar la vista según la página activa
     if (typeof renderProductosVenta === 'function') renderProductosVenta();
     if (typeof renderProductos === 'function') renderProductos();
     if (typeof renderGastos === 'function') renderGastos();
     if (typeof renderVentas === 'function') renderVentas();
   } catch (err) {
-    console.error('Error cargando datos de Supabase:', err);
+    console.error('Error al cargar datos desde Supabase:', err);
   }
 }
 
 function updateDashboard() {
-  const totalIngresos = ventas.reduce((acc, v) => acc + (v.ingreso || v.total || 0), 0);
-  const totalReinversionVentas = ventas.reduce((acc, v) => acc + (v.reinversion || 0), 0);
-  const totalGananciaBruta = ventas.reduce((acc, v) => acc + (v.gananciaBruta || 0), 0);
+  const totalIngresos = ventas.reduce((acc, v) => acc + Number(v.ingreso || v.total || 0), 0);
+  const totalReinversionVentas = ventas.reduce((acc, v) => acc + Number(v.reinversion || 0), 0);
+  const totalGananciaBruta = ventas.reduce((acc, v) => acc + Number(v.gananciaBruta || 0), 0);
 
   const totalGastosFijos = gastos
     .filter(g => g.tipo === 'OPERATIVO' || !g.tipo)
-    .reduce((acc, g) => acc + (g.monto || 0), 0);
+    .reduce((acc, g) => acc + Number(g.monto || 0), 0);
 
   const totalReinversionGastos = gastos
     .filter(g => g.tipo === 'REINVERSION')
-    .reduce((acc, g) => acc + (g.monto || 0), 0);
+    .reduce((acc, g) => acc + Number(g.monto || 0), 0);
 
   const gananciaNeta = totalGananciaBruta - totalGastosFijos;
   const reinversionTotal = totalReinversionVentas + totalReinversionGastos;
@@ -75,9 +74,9 @@ function exportarCSV() {
 }
 
 function copiarResumen() {
-  const totalIngresos = ventas.reduce((acc, v) => acc + (v.ingreso || v.total || 0), 0);
-  const totalGastosFijos = gastos.filter(g => g.tipo === 'OPERATIVO' || !g.tipo).reduce((acc, g) => acc + (g.monto || 0), 0);
-  const totalGananciaBruta = ventas.reduce((acc, v) => acc + (v.gananciaBruta || 0), 0);
+  const totalIngresos = ventas.reduce((acc, v) => acc + Number(v.ingreso || v.total || 0), 0);
+  const totalGastosFijos = gastos.filter(g => g.tipo === 'OPERATIVO' || !g.tipo).reduce((acc, g) => acc + Number(g.monto || 0), 0);
+  const totalGananciaBruta = ventas.reduce((acc, v) => acc + Number(v.gananciaBruta || 0), 0);
   const gananciaNeta = totalGananciaBruta - totalGastosFijos;
 
   const resumen = `📊 RESUMEN MI POS\nVentas Brutas: $${totalIngresos.toFixed(2)}\nGastos Fijos: $${totalGastosFijos.toFixed(2)}\nGanancia Neta: $${gananciaNeta.toFixed(2)}`;
@@ -85,5 +84,4 @@ function copiarResumen() {
   alert('Resumen copiado al portapapeles');
 }
 
-// Cargar datos automáticamente al iniciar cualquier página
 document.addEventListener('DOMContentLoaded', cargarDatosGlobales);
