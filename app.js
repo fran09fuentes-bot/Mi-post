@@ -1,5 +1,5 @@
 // Configuración de Supabase
-const SUPABASE_URL = 'https://gWOLb2P47i8qiQuSAnAldA.supabase.co'; // Asegúrate de verificar/completar la URL exacta de tu proyecto
+const SUPABASE_URL = 'https://gWOLb2P47i8qiQuSAnAldA.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gWOLb2P47i8qiQuSAnAldA_54neh6U7';
 
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -8,20 +8,82 @@ let productos = [];
 let ventas = [];
 let gastos = [];
 
-// Cargar datos iniciales desde Supabase
-async function cargarIt looks like you've pasted two Supabase API credentials: an anon/publishable key (`sb_publishable_...`) and a secret/service role key (`sb_secret_...`). 
+// Cargar todos los datos desde Supabase
+async function cargarDatosGlobales() {
+  try {
+    const { data: prods } = await _supabase.from('productos').select('*');
+    if (prods) productos = prods;
 
-**Security Warning:**
-1. **Rotate the Secret Key:** The `sb_secret_` token carries full administrative privileges, bypassing all Row Level Security (RLS) policies. Since it has been posted here, it should be considered compromised. You should immediately regenerate or revoke this API key inside your **Supabase Dashboard > Project Settings > API**.
-2. **Environment Variables:** Always keep your secret keys stored safely in a `.env.local` or environment file and never commit or paste them into public facing code or chats.
+    const { data: vts } = await _supabase.from('ventas').select('*').order('created_at', { ascending: false });
+    if (vts) ventas = vts;
 
-If you were trying to set up your project configuration, you typically load them into your client setup like this:
+    const { data: gst } = await _supabase.from('gastos').select('*').order('created_at', { ascending: false });
+    if (gst) gastos = gst;
 
-```javascript
-// Example setup (React / JavaScript)
-import { createClient } from '@supabase/supabase-js'
+    updateDashboard();
 
-const supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY // Use publishable/anon key here
+    // Actualizar la vista según la página activa
+    if (typeof renderProductosVenta === 'function') renderProductosVenta();
+    if (typeof renderProductos === 'function') renderProductos();
+    if (typeof renderGastos === 'function') renderGastos();
+    if (typeof renderVentas === 'function') renderVentas();
+  } catch (err) {
+    console.error('Error cargando datos de Supabase:', err);
+  }
+}
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+function updateDashboard() {
+  const totalIngresos = ventas.reduce((acc, v) => acc + (v.ingreso || v.total || 0), 0);
+  const totalReinversionVentas = ventas.reduce((acc, v) => acc + (v.reinversion || 0), 0);
+  const totalGananciaBruta = ventas.reduce((acc, v) => acc + (v.gananciaBruta || 0), 0);
+
+  const totalGastosFijos = gastos
+    .filter(g => g.tipo === 'OPERATIVO' || !g.tipo)
+    .reduce((acc, g) => acc + (g.monto || 0), 0);
+
+  const totalReinversionGastos = gastos
+    .filter(g => g.tipo === 'REINVERSION')
+    .reduce((acc, g) => acc + (g.monto || 0), 0);
+
+  const gananciaNeta = totalGananciaBruta - totalGastosFijos;
+  const reinversionTotal = totalReinversionVentas + totalReinversionGastos;
+
+  const elBruto = document.getElementById('dash-total-bruto');
+  const elReinv = document.getElementById('dash-reinversion');
+  const elGastos = document.getElementById('dash-total-gastos');
+  const elNeta = document.getElementById('dash-ganancia-neta');
+  const elCant = document.getElementById('dash-cant-ventas');
+
+  if (elBruto) elBruto.innerText = `$${totalIngresos.toFixed(2)}`;
+  if (elReinv) elReinv.innerText = `$${reinversionTotal.toFixed(2)}`;
+  if (elGastos) elGastos.innerText = `$${totalGastosFijos.toFixed(2)}`;
+  if (elNeta) elNeta.innerText = `$${gananciaNeta.toFixed(2)}`;
+  if (elCant) elCant.innerText = ventas.length;
+}
+
+function exportarCSV() {
+  let csv = 'Fecha,Producto,Cantidad,Ingreso Total,Fondo Reinversion,Ganancia Bruta\n';
+  ventas.forEach(v => {
+    csv += `"${v.fecha || ''}","${v.producto}",${v.cantidad || 1},${v.ingreso || 0},${v.reinversion || 0},${v.gananciaBruta || 0}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Reporte_Ventas_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function copiarResumen() {
+  const totalIngresos = ventas.reduce((acc, v) => acc + (v.ingreso || v.total || 0), 0);
+  const totalGastosFijos = gastos.filter(g => g.tipo === 'OPERATIVO' || !g.tipo).reduce((acc, g) => acc + (g.monto || 0), 0);
+  const totalGananciaBruta = ventas.reduce((acc, v) => acc + (v.gananciaBruta || 0), 0);
+  const gananciaNeta = totalGananciaBruta - totalGastosFijos;
+
+  const resumen = `📊 RESUMEN MI POS\nVentas Brutas: $${totalIngresos.toFixed(2)}\nGastos Fijos: $${totalGastosFijos.toFixed(2)}\nGanancia Neta: $${gananciaNeta.toFixed(2)}`;
+  navigator.clipboard.writeText(resumen);
+  alert('Resumen copiado al portapapeles');
+}
+
+// Cargar datos automáticamente al iniciar cualquier página
+document.addEventListener('DOMContentLoaded', cargarDatosGlobales);
