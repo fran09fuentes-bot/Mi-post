@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi POS - Productos</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -63,6 +64,7 @@
   <script>
     function renderProductos() {
       const lista = document.getElementById('lista-productos');
+      if (!lista) return;
       lista.innerHTML = '';
 
       productos.forEach(p => {
@@ -73,31 +75,34 @@
       });
     }
 
-    function guardarProducto(e) {
+    async function guardarProducto(e) {
       e.preventDefault();
       const nombre = document.getElementById('prod-nombre').value;
       const costo = parseFloat(document.getElementById('prod-costo').value);
       const precio = parseFloat(document.getElementById('prod-precio').value);
       const stock = parseInt(document.getElementById('prod-stock').value) || 0;
 
-      const nuevoProd = { id: Date.now(), nombre, costo, precio, stock };
+      const { error } = await _supabase.from('productos').insert([{ nombre, costo, precio, stock }]);
 
-      productos.push(nuevoProd);
-      localStorage.setItem('pos_prods', JSON.stringify(productos));
-      
+      if (error) {
+        alert('Error al guardar producto: ' + error.message);
+        return;
+      }
+
       e.target.reset();
-      renderProductos();
+      await cargarDatosGlobales();
     }
 
-    function eliminarProducto(id) {
+    async function eliminarProducto(id) {
       if (confirm('¿Eliminar producto del catálogo?')) {
-        productos = productos.filter(p => p.id !== id);
-        localStorage.setItem('pos_prods', JSON.stringify(productos));
-        renderProductos();
+        const { error } = await _supabase.from('productos').delete().eq('id', id);
+        if (error) {
+          alert('Error al eliminar producto: ' + error.message);
+          return;
+        }
+        await cargarDatosGlobales();
       }
     }
-
-    renderProductos();
   </script>
 </body>
 </html>
