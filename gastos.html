@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi POS - Gastos</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -78,46 +79,51 @@
       }
     }
 
-    function guardarGasto(e) {
+    async function guardarGasto(e) {
       e.preventDefault();
       const concepto = document.getElementById('gasto-concepto').value;
       const monto = parseFloat(document.getElementById('gasto-monto').value);
       const hoy = new Date();
       const fechaStr = `${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`;
 
-      gastos.unshift({ 
-        id: Date.now(), 
+      const { error } = await _supabase.from('gastos').insert([{
         concepto: `${concepto} (${fechaStr})`, 
         monto, 
         tipo: tipoGastoSeleccionado 
-      });
+      }]);
 
-      localStorage.setItem('pos_gst', JSON.stringify(gastos));
-      
+      if (error) {
+        alert('Error al guardar gasto: ' + error.message);
+        return;
+      }
+
       document.getElementById('gasto-concepto').value = '';
       document.getElementById('gasto-monto').value = '';
       setGastoTipo('OPERATIVO');
 
-      renderGastos();
+      await cargarDatosGlobales();
     }
 
-    function eliminarGasto(id, concepto) {
-      if (confirm(`¿Quieres eliminar el gasto "${concepto}"?`)) {
-        gastos = gastos.filter(g => g.id !== id && g.concepto !== concepto);
-        localStorage.setItem('pos_gst', JSON.stringify(gastos));
-        renderGastos();
+    async function eliminarGasto(id) {
+      if (confirm('¿Quieres eliminar este gasto?')) {
+        const { error } = await _supabase.from('gastos').delete().eq('id', id);
+        if (error) {
+          alert('Error al eliminar gasto: ' + error.message);
+          return;
+        }
+        await cargarDatosGlobales();
       }
     }
 
     function renderGastos() {
       const lista = document.getElementById('lista-gastos');
+      if (!lista) return;
       lista.innerHTML = '';
       if (gastos.length === 0) {
         lista.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No hay gastos registrados.</p>';
         return;
       }
-      gastos.forEach((g, index) => {
-        const idGasto = g.id || index;
+      gastos.forEach(g => {
         const item = document.createElement('div');
         item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
         item.innerHTML = `
@@ -129,7 +135,7 @@
           </div>
           <div class="flex items-center gap-2">
             <span class="font-bold text-red-500">-$${Number(g.monto).toFixed(2)}</span>
-            <button onclick="eliminarGasto(${idGasto}, '${(g.concepto || '').replace(/'/g, "\\'")}')" class="text-red-400 hover:text-red-600 p-1 text-xs">
+            <button onclick="eliminarGasto(${g.id})" class="text-red-400 hover:text-red-600 p-1 text-xs">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
@@ -137,8 +143,6 @@
         lista.appendChild(item);
       });
     }
-
-    renderGastos();
   </script>
 </body>
 </html>
