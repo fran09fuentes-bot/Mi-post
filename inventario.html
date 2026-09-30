@@ -18,120 +18,174 @@
       <h1 class="font-bold text-lg flex items-center gap-2">
         <i class="fa-solid fa-boxes-stacked text-emerald-400"></i> Mi POS Negocio
       </h1>
-      <p class="text-xs text-gray-400">Catalogo de Productos</p>
+      <p class="text-xs text-gray-400">Gestión de Productos e Inventario</p>
     </div>
   </header>
 
   <main class="p-4 max-w-lg mx-auto space-y-4">
-    <!-- Navegacion -->
-    <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold">
-      <a href="index.html" class="flex-1 text-center py-2 rounded-lg text-gray-600">
+    <!-- Navegación -->
+    <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold overflow-x-auto">
+      <a href="index.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
         <i class="fa-solid fa-cart-plus"></i> Vender
       </a>
-      <a href="inventario.html" class="flex-1 text-center py-2 rounded-lg bg-white shadow text-slate-900 font-bold">
+      <a href="inventario.html" class="flex-1 text-center py-2 px-2 rounded-lg bg-white shadow text-slate-900 font-bold whitespace-nowrap">
         <i class="fa-solid fa-boxes-stacked"></i> Productos
       </a>
-      <a href="gastos.html" class="flex-1 text-center py-2 rounded-lg text-gray-600">
+      <a href="gastos.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
         <i class="fa-solid fa-wallet"></i> Gastos
       </a>
-      <a href="historial.html" class="flex-1 text-center py-2 rounded-lg text-gray-600">
+      <a href="caja.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-cash-register"></i> Caja
+      </a>
+      <a href="historial.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
         <i class="fa-solid fa-receipt"></i> Historial
       </a>
     </nav>
 
-    <!-- Formulario Producto -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
-      <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider border-b pb-2">Nuevo Producto</h2>
-      <form onsubmit="guardarProducto(event)" class="space-y-2.5">
-        <input type="text" id="prod-nombre" required placeholder="Nombre del producto" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
-        <div class="grid grid-cols-3 gap-2">
-          <input type="number" step="0.01" id="prod-costo" required placeholder="Costo ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
-          <input type="number" step="0.01" id="prod-precio" required placeholder="Precio ($)" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
-          <input type="number" id="prod-stock" placeholder="Stock" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+    <!-- Formulario Crear/Editar Producto -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
+        <i class="fa-solid fa-plus text-emerald-500"></i> <span id="form-title">Agregar Producto</span>
+      </h3>
+
+      <input type="hidden" id="prod-id">
+
+      <div class="space-y-2">
+        <div>
+          <label class="block text-[11px] font-medium text-gray-600">Nombre del Producto</label>
+          <input type="text" id="prod-nombre" placeholder="Ej. Base Italia Matte" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
         </div>
-        <button type="submit" class="w-full bg-slate-900 text-white py-2 rounded-xl text-xs font-bold shadow">Guardar Producto</button>
-      </form>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[11px] font-medium text-gray-600">Costo ($)</label>
+            <input type="number" step="0.01" id="prod-costo" placeholder="0.00" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-gray-600">Precio Venta ($)</label>
+            <input type="number" step="0.01" id="prod-precio" placeholder="0.00" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-gray-600">Stock</label>
+            <input type="number" id="prod-stock" placeholder="0" class="w-full border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-emerald-500">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="guardarProducto()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-floppy-disk"></i> Guardar
+        </button>
+        <button onclick="limpiarFormulario()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 rounded-xl text-xs font-bold">
+          Cancelar
+        </button>
+      </div>
     </div>
 
     <!-- Lista de Productos -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
-      <h3 class="font-bold text-gray-800 text-xs uppercase tracking-wider mb-2">Catalogo</h3>
-      <div id="lista-productos" class="space-y-1.5 max-h-64 overflow-y-auto"></div>
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
+        <i class="fa-solid fa-list text-blue-500"></i> Catálogo Registrado
+      </h3>
+      <div id="lista-productos" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
     </div>
   </main>
 
   <script src="app.js"></script>
   <script>
-    function renderProductos() {
-      const lista = document.getElementById('lista-productos');
-      if (!lista) return;
-      lista.innerHTML = '';
+    function renderListaProductos() {
+      const contenedor = document.getElementById('lista-productos');
+      if (!contenedor) return;
+      const productos = window.productos || [];
 
-      const listaProds = window.productos || [];
-
-      if (listaProds.length === 0) {
-        lista.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No hay productos registrados</p>';
+      if (productos.length === 0) {
+        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No hay productos guardados.</p>';
         return;
       }
 
-      listaProds.forEach(p => {
+      contenedor.innerHTML = '';
+      productos.forEach(p => {
         const item = document.createElement('div');
-        item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
-        item.innerHTML = `<div><span class="font-bold">${p.nombre}</span> <span class="text-[10px] text-gray-400">(C: $${Number(p.costo || 0).toFixed(2)} | V: $${Number(p.precio || 0).toFixed(2)} | Stock: ${p.stock ?? 'N/A'})</span></div><button onclick="eliminarProducto(${p.id})" class="text-red-400 hover:text-red-600 text-xs px-1"><i class="fa-solid fa-trash"></i></button>`;
-        lista.appendChild(item);
+        item.className = 'p-3 bg-gray-50 rounded-xl border flex justify-between items-center text-xs';
+        const gananciaUnitaria = (Number(p.precio || 0) - Number(p.costo || 0)).toFixed(2);
+
+        item.innerHTML = `
+          <div>
+            <p class="font-bold text-slate-800">${p.nombre}</p>
+            <p class="text-[10px] text-gray-500">Costo: $${Number(p.costo || 0).toFixed(2)} | Ganancia u.: $${gananciaUnitaria}</p>
+            <span class="text-[10px] font-semibold text-emerald-600">Stock: ${p.stock ?? 0} u.</span>
+          </div>
+          <div class="text-right space-y-1">
+            <p class="font-extrabold text-slate-900 text-sm">$${Number(p.precio || 0).toFixed(2)}</p>
+            <div class="flex gap-1 justify-end">
+              <button onclick="cargarParaEditar('${p.id}')" class="text-blue-600 hover:bg-blue-50 p-1 rounded">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button onclick="eliminarProd('${p.id}')" class="text-rose-600 hover:bg-rose-50 p-1 rounded">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        contenedor.appendChild(item);
       });
     }
 
-    async function guardarProducto(e) {
-      e.preventDefault();
-      const nombre = document.getElementById('prod-nombre').value;
-      const costo = parseFloat(document.getElementById('prod-costo').value);
-      const precio = parseFloat(document.getElementById('prod-precio').value);
+    async function guardarProducto() {
+      const id = document.getElementById('prod-id').value;
+      const nombre = document.getElementById('prod-nombre').value.trim();
+      const costo = parseFloat(document.getElementById('prod-costo').value) || 0;
+      const precio = parseFloat(document.getElementById('prod-precio').value) || 0;
       const stock = parseInt(document.getElementById('prod-stock').value) || 0;
 
+      if (!nombre) {
+        alert('Ingresa el nombre del producto.');
+        return;
+      }
+
       const db = window._supabase || window.supabase;
-
-      if (!db) {
-        alert('Error: Supabase no está inicializado');
-        return;
+      if (id) {
+        await db.from('productos').update({ nombre, costo, precio, stock }).eq('id', id);
+      } else {
+        await db.from('productos').insert([{ nombre, costo, precio, stock }]);
       }
 
-      const { error } = await db.from('productos').insert([{ nombre, costo, precio, stock }]);
-
-      if (error) {
-        alert('Error al guardar producto: ' + error.message);
-        return;
-      }
-
-      e.target.reset();
-      if (typeof cargarDatosGlobales === 'function') {
-        await cargarDatosGlobales();
-      }
-      renderProductos();
+      limpiarFormulario();
+      if (typeof cargarDatosGlobales === 'function') await cargarDatosGlobales();
+      renderListaProductos();
     }
 
-    async function eliminarProducto(id) {
-      if (confirm('¿Eliminar producto del catálogo?')) {
-        const db = window._supabase || window.supabase;
-        const { error } = await db.from('productos').delete().eq('id', id);
-        
-        if (error) {
-          alert('Error al eliminar producto: ' + error.message);
-          return;
-        }
-        
-        if (typeof cargarDatosGlobales === 'function') {
-          await cargarDatosGlobales();
-        }
-        renderProductos();
-      }
+    function cargarParaEditar(id) {
+      const p = (window.productos || []).find(item => String(item.id) === String(id));
+      if (!p) return;
+      document.getElementById('prod-id').value = p.id;
+      document.getElementById('prod-nombre').value = p.nombre;
+      document.getElementById('prod-costo').value = p.costo || 0;
+      document.getElementById('prod-precio').value = p.precio || 0;
+      document.getElementById('prod-stock').value = p.stock || 0;
+      document.getElementById('form-title').textContent = 'Editar Producto';
+    }
+
+    function limpiarFormulario() {
+      document.getElementById('prod-id').value = '';
+      document.getElementById('prod-nombre').value = '';
+      document.getElementById('prod-costo').value = '';
+      document.getElementById('prod-precio').value = '';
+      document.getElementById('prod-stock').value = '';
+      document.getElementById('form-title').textContent = 'Agregar Producto';
+    }
+
+    async function eliminarProd(id) {
+      if (!confirm('¿Seguro que deseas eliminar este producto?')) return;
+      const db = window._supabase || window.supabase;
+      await db.from('productos').delete().eq('id', id);
+      if (typeof cargarDatosGlobales === 'function') await cargarDatosGlobales();
+      renderListaProductos();
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
-      if (typeof cargarDatosGlobales === 'function') {
-        await cargarDatosGlobales();
-      }
-      renderProductos();
+      if (typeof cargarDatosGlobales === 'function') await cargarDatosGlobales();
+      renderListaProductos();
     });
   </script>
 </body>
