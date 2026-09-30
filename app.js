@@ -113,3 +113,32 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
 document.addEventListener('DOMContentLoaded', () => {
   cargarDatosGlobales();
 });
+// ELIMINAR VENTA
+async function eliminarVenta(id) {
+  if (!_supabase) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  if (confirm('¿Estás seguro de que deseas eliminar esta venta registrada?')) {
+    try {
+      const { error } = await _supabase
+        .from('ventas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      alert('Venta eliminada con éxito.');
+      await cargarDatosGlobales();
+
+      // Si existe la función de renderizado en la página actual, la ejecutamos
+      if (typeof renderHistorial === 'function') {
+        renderHistorial();
+      }
+    } catch (err) {
+      console.error('Error al eliminar venta:', err);
+      alert('Error al eliminar venta: ' + err.message);
+    }
+  }
+}
