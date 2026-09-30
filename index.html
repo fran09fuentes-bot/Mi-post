@@ -23,28 +23,49 @@
   </header>
 
   <main class="p-4 max-w-lg mx-auto space-y-4">
-    <!-- Tarjetas de Métricas -->
-    <div class="grid grid-cols-2 gap-3">
-      <div class="bg-white p-3 rounded-2xl border shadow-sm">
+    <!-- Tarjetas de Métricas Principales (Cuadrícula de 4) -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <!-- 1. Ventas Hoy -->
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
         <span class="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-dollar-sign"></i> Ventas Hoy
+        </span>
+        <h2 id="total-ventas-hoy" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Ingreso del día</p>
+      </div>
+
+      <!-- 2. Ganancia Neta -->
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1">
           <i class="fa-solid fa-chart-line"></i> Ganancia Neta
         </span>
-        <h2 id="total-ganancia-neta" class="text-lg font-extrabold text-slate-800">$0.00</h2>
+        <h2 id="total-ganancia-neta" class="text-base font-extrabold text-slate-800">$0.00</h2>
         <p class="text-[9px] text-gray-400">Utilidad real</p>
       </div>
-      <div class="bg-white p-3 rounded-2xl border shadow-sm">
+
+      <!-- 3. Capital Reinversión -->
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
         <span class="text-[10px] font-bold text-blue-600 uppercase flex items-center gap-1">
           <i class="fa-solid fa-piggy-bank"></i> Reinversión
         </span>
-        <h2 id="total-reinversion" class="text-lg font-extrabold text-slate-800">$0.00</h2>
-        <p class="text-[9px] text-gray-400">Reposición de inventario</p>
+        <h2 id="total-reinversion" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Reposición stock</p>
+      </div>
+
+      <!-- 4. Caja Efectivo -->
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-amber-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-money-bill-wave"></i> Caja Efectivo
+        </span>
+        <h2 id="total-efectivo-caja" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Efectivo físico</p>
       </div>
     </div>
 
-    <!-- Barra de resumen rápida -->
+    <!-- Resumen acumulado -->
     <div class="bg-slate-900 text-white p-3 rounded-2xl flex justify-around text-center text-xs shadow-inner">
       <div>
-        <p class="text-[10px] text-gray-400">Ventas Brutas</p>
+        <p class="text-[10px] text-gray-400">Ventas Acum.</p>
         <p id="total-ventas-brutas" class="font-bold text-emerald-400">$0.00</p>
       </div>
       <div>
@@ -79,16 +100,26 @@
         <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
       </h3>
 
-      <!-- Grid de productos -->
+      <!-- Grid del Catálogo con alertas de stock -->
       <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1"></div>
 
-      <!-- Detalle del Producto Seleccionado -->
-      <div class="p-3 bg-gray-50 rounded-xl border space-y-2">
+      <!-- Detalle y Método de Pago -->
+      <div class="p-3 bg-gray-50 rounded-xl border space-y-2.5">
         <div class="flex justify-between items-center text-xs">
           <span class="text-gray-500">Seleccionado:</span>
           <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
         </div>
-        
+
+        <!-- Selector de Método de Pago -->
+        <div class="flex justify-between items-center text-xs pt-1 border-t">
+          <span class="text-gray-500 font-medium">Método de Pago:</span>
+          <select id="select-metodo-pago" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white">
+            <option value="Efectivo">💵 Efectivo</option>
+            <option value="Transferencia">🏦 Transferencia</option>
+            <option value="Tarjeta">💳 Tarjeta</option>
+          </select>
+        </div>
+
         <div class="flex justify-between items-center pt-2 border-t">
           <div class="flex items-center gap-2">
             <button onclick="cambiarCantidad(-1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">-</button>
@@ -128,16 +159,33 @@
       lista.forEach(p => {
         const card = document.createElement('div');
         const esSeleccionado = productoSeleccionado && productoSeleccionado.id === p.id;
+        const stock = p.stock ?? 0;
+
+        let badgeStock = `<span class="text-[10px] text-gray-400">Stock: ${stock}</span>`;
+        if (stock <= 0) {
+          badgeStock = `<span class="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Agotado</span>`;
+        } else if (stock <= 3) {
+          badgeStock = `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">¡Quedan ${stock}!</span>`;
+        }
         
         card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
           esSeleccionado ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
-        }`;
+        } ${stock <= 0 ? 'opacity-60' : ''}`;
         
-        card.onclick = () => seleccionarProducto(p);
+        card.onclick = () => {
+          if (stock <= 0) {
+            alert('Este producto se encuentra agotado.');
+            return;
+          }
+          seleccionarProducto(p);
+        };
+
         card.innerHTML = `
           <p class="font-bold text-xs text-slate-800 truncate">${p.nombre}</p>
-          <p class="text-emerald-600 font-extrabold text-xs">$${Number(p.precio || 0).toFixed(2)}</p>
-          <p class="text-[10px] text-gray-400">Stock: ${p.stock ?? 'N/A'}</p>
+          <div class="flex justify-between items-end mt-1">
+            <p class="text-emerald-600 font-extrabold text-xs">$${Number(p.precio || 0).toFixed(2)}</p>
+            ${badgeStock}
+          </div>
         `;
         grid.appendChild(card);
       });
@@ -152,8 +200,13 @@
 
     function cambiarCantidad(delta) {
       if (!productoSeleccionado) return;
-      cantidadSeleccionada = Math.max(1, cantidadSeleccionada + delta);
-      actualizarResumenSeleccion();
+      const nuevoValor = cantidadSeleccionada + delta;
+      if (nuevoValor >= 1 && (productoSeleccionado.stock === null || nuevoValor <= productoSeleccionado.stock)) {
+        cantidadSeleccionada = nuevoValor;
+        actualizarResumenSeleccion();
+      } else if (nuevoValor > productoSeleccionado.stock) {
+        alert(`Alcanzaste el límite de stock disponible (${productoSeleccionado.stock} u.)`);
+      }
     }
 
     function actualizarResumenSeleccion() {
@@ -179,8 +232,10 @@
         return;
       }
 
+      const metodoPago = document.getElementById('select-metodo-pago').value;
+
       if (typeof registrarVenta === 'function') {
-        await registrarVenta(productoSeleccionado, cantidadSeleccionada);
+        await registrarVenta(productoSeleccionado, cantidadSeleccionada, metodoPago);
         productoSeleccionado = null;
         cantidadSeleccionada = 1;
         actualizarResumenSeleccion();
@@ -193,14 +248,33 @@
       const vts = window.ventas || [];
       const gsts = window.gastos || [];
 
-      let totalBruto = 0;
-      let totalNeta = 0;
-      let totalReinversion = 0;
+      const hoy = new Date();
+      const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+
+      let totalBrutoHoy = 0;
+      let totalNetaHoy = 0;
+      let totalReinversionHoy = 0;
+      let totalEfectivoHoy = 0;
+
+      let totalAcumulado = 0;
 
       vts.forEach(v => {
-        totalBruto += Number(v.total || v.ingreso || 0);
-        totalNeta += Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || 0);
-        totalReinversion += Number(v.reinversion || 0);
+        const fechaVenta = new Date(v.fecha || v.created_at || 0);
+        const monto = Number(v.total || v.ingreso || 0);
+        const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || 0);
+        const reinversioVal = Number(v.reinversion || 0);
+
+        totalAcumulado += monto;
+
+        if (fechaVenta >= inicioHoy) {
+          totalBrutoHoy += monto;
+          totalNetaHoy += ganancia;
+          totalReinversionHoy += reinversioVal;
+
+          if ((v.metodo_pago || 'Efectivo') === 'Efectivo') {
+            totalEfectivoHoy += monto;
+          }
+        }
       });
 
       let totalGastos = 0;
@@ -208,9 +282,12 @@
         totalGastos += Number(g.monto || g.precio || 0);
       });
 
-      document.getElementById('total-ventas-brutas').textContent = `$${totalBruto.toFixed(2)}`;
-      document.getElementById('total-ganancia-neta').textContent = `$${(totalNeta - totalGastos).toFixed(2)}`;
-      document.getElementById('total-reinversion').textContent = `$${totalReinversion.toFixed(2)}`;
+      document.getElementById('total-ventas-hoy').textContent = `$${totalBrutoHoy.toFixed(2)}`;
+      document.getElementById('total-ganancia-neta').textContent = `$${(totalNetaHoy - totalGastos).toFixed(2)}`;
+      document.getElementById('total-reinversion').textContent = `$${totalReinversionHoy.toFixed(2)}`;
+      document.getElementById('total-efectivo-caja').textContent = `$${totalEfectivoHoy.toFixed(2)}`;
+
+      document.getElementById('total-ventas-brutas').textContent = `$${totalAcumulado.toFixed(2)}`;
       document.getElementById('total-gastos').textContent = `$${totalGastos.toFixed(2)}`;
       document.getElementById('cant-ventas').textContent = vts.length;
     }
