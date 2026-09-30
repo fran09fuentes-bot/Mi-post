@@ -1,3 +1,4 @@
+// Configuración de Supabase
 const SUPABASE_URL = 'https://cdwvzbugtrxsgefzpadz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gWOLb2P47i8qiQuSAnAldA_54neh6U7';
 
@@ -5,7 +6,7 @@ let _supabase;
 if (window.supabase && typeof window.supabase.createClient === 'function') {
   _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 } else {
-  console.error("Libreria de Supabase no encontrada");
+  console.error("Librería de Supabase no encontrada");
 }
 
 window._supabase = _supabase;
@@ -15,6 +16,7 @@ window.productos = [];
 window.ventas = [];
 window.gastos = [];
 
+// Función para cargar todos los datos globales desde Supabase
 async function cargarDatosGlobales() {
   if (!_supabase) return;
 
@@ -36,9 +38,10 @@ async function cargarDatosGlobales() {
   }
 }
 
+// Función global para registrar ventas
 async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efectivo', descuento = 0) {
   if (!_supabase) {
-    alert("Error: Supabase no esta conectado.");
+    alert("Error: Supabase no está conectado.");
     return;
   }
 
@@ -76,6 +79,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
           gananciaNeta: gananciaBruta,
           ganancia_neta: gananciaBruta,
           reinversion: reinversion,
+          costo: reinversion,
           metodo_pago: metodoPago,
           detalles_productos: [
             {
@@ -100,7 +104,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
         .eq('id', productoSeleccionado.id);
     }
 
-    alert('¡Venta registrada con exito!');
+    alert('¡Venta registrada con éxito!');
     await cargarDatosGlobales();
 
   } catch (error) {
@@ -109,13 +113,14 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
   }
 }
 
+// Función global para eliminar ventas
 async function eliminarVenta(id) {
   if (!_supabase) {
-    alert("Error: Supabase no esta conectado.");
+    alert("Error: Supabase no está conectado.");
     return;
   }
 
-  if (confirm('¿Deseas eliminar esta venta? El stock sera devuelto al inventario.')) {
+  if (confirm('¿Deseas eliminar esta venta? El stock será devuelto al inventario.')) {
     try {
       const ventaAEliminar = (window.ventas || []).find(v => v.id === id);
 
@@ -149,6 +154,10 @@ async function eliminarVenta(id) {
     }
   }
 }
+
+window.cargarDatosGlobales = cargarDatosGlobales;
+window.registrarVenta = registrarVenta;
+window.eliminarVenta = eliminarVenta;
 
 document.addEventListener('DOMContentLoaded', () => {
   cargarDatosGlobales();
