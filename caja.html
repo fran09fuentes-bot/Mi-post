@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi POS - Control de Caja</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 pb-20">
+
+  <header class="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-lg flex items-center gap-2">
+        <i class="fa-solid fa-boxes-stacked text-emerald-400"></i> Mi POS Negocio
+      </h1>
+      <p class="text-xs text-gray-400">Arqueo y Cierre Diarios de Caja</p>
+    </div>
+  </header>
+
+  <main class="p-4 max-w-lg mx-auto space-y-4">
+    <!-- Navegacion -->
+    <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold overflow-x-auto">
+      <a href="index.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-cart-plus"></i> Vender
+      </a>
+      <a href="inventario.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-boxes-stacked"></i> Productos
+      </a>
+      <a href="gastos.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-wallet"></i> Gastos
+      </a>
+      <a href="caja.html" class="flex-1 text-center py-2 px-2 rounded-lg bg-white shadow text-slate-900 font-bold whitespace-nowrap">
+        <i class="fa-solid fa-cash-register text-amber-500"></i> Caja
+      </a>
+      <a href="historial.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-receipt"></i> Historial
+      </a>
+    </nav>
+
+    <!-- Estado Actual de la Caja del Día -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h2 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-calculator text-amber-500"></i> Balance de Caja (Hoy)
+        </h2>
+        <div class="flex items-center gap-1">
+          <span class="text-[10px] text-gray-500 font-semibold">Base $</span>
+          <input type="number" id="input-base-inicial" value="0.00" step="0.01" onchange="calcularCaja()" class="w-16 border rounded-lg px-1.5 py-0.5 text-xs text-right outline-none focus:ring-1 focus:ring-amber-500">
+        </div>
+      </div>
+
+      <!-- Desglose -->
+      <div class="space-y-1.5 text-xs">
+        <div class="flex justify-between text-gray-600">
+          <span>(+) Fondo Inicial de Cambio:</span>
+          <span id="lbl-base" class="font-bold text-slate-800">$0.00</span>
+        </div>
+        <div class="flex justify-between text-emerald-600">
+          <span>(+) Ventas Cobradas en Efectivo:</span>
+          <span id="lbl-ventas-efectivo" class="font-bold">$0.00</span>
+        </div>
+        <div class="flex justify-between text-rose-600">
+          <span>(-) Gastos Pagados en Efectivo:</span>
+          <span id="lbl-gastos-efectivo" class="font-bold">$0.00</span>
+        </div>
+        <div class="flex justify-between pt-2 border-t font-extrabold text-sm text-slate-900">
+          <span>(=) Efectivo Esperado en Caja:</span>
+          <span id="lbl-efectivo-esperado" class="text-amber-600">$0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Módulo de Arqueo y Cierre -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
+        <i class="fa-solid fa-lock text-slate-700"></i> Efectuar Arqueo y Cierre
+      </h3>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold text-gray-600">Ingresa el Efectivo Físico Contado ($):</label>
+        <input type="number" id="input-efectivo-real" step="0.01" placeholder="0.00" oninput="calcularDiferencia()" class="w-full border rounded-xl p-2.5 text-sm font-bold text-slate-800 outline-none focus:ring-1 focus:ring-emerald-500">
+      </div>
+
+      <!-- Resultado Diferencia -->
+      <div id="box-diferencia" class="p-3 rounded-xl border text-xs text-center font-bold hidden"></div>
+
+      <button onclick="guardarCierreCaja()" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-2">
+        <i class="fa-solid fa-box-archive"></i> Guardar y Cerrar Caja de Hoy
+      </button>
+    </div>
+
+    <!-- Historial de Cierres de Caja -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
+        <i class="fa-solid fa-clock-rotate-left text-blue-500"></i> Cierres Guardados
+      </h3>
+      <div id="lista-cierres" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    let totalEsperadoCaja = 0;
+    let vtsEfectivoHoy = 0;
+    let gstsEfectivoHoy = 0;
+
+    function calcularCaja() {
+      const vts = window.ventas || [];
+      const gsts = window.gastos || [];
+
+      const hoy = new Date();
+      const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+
+      vtsEfectivoHoy = 0;
+      gstsEfectivoHoy = 0;
+
+      vts.forEach(v => {
+        const f = new Date(v.fecha || v.created_at || 0);
+        if (f >= inicioHoy && (v.metodo_pago || 'Efectivo') === 'Efectivo') {
+          vtsEfectivoHoy += Number(v.total || v.ingreso || 0);
+        }
+      });
+
+      gsts.forEach(g => {
+        const f = new Date(g.fecha || g.created_at || 0);
+        if (f >= inicioHoy) {
+          gstsEfectivoHoy += Number(g.monto || g.precio || 0);
+        }
+      });
+
+      const baseInicial = parseFloat(document.getElementById('input-base-inicial').value) || 0;
+      totalEsperadoCaja = baseInicial + vtsEfectivoHoy - gstsEfectivoHoy;
+
+      document.getElementById('lbl-base').textContent = `$${baseInicial.toFixed(2)}`;
+      document.getElementById('lbl-ventas-efectivo').textContent = `$${vtsEfectivoHoy.toFixed(2)}`;
+      document.getElementById('lbl-gastos-efectivo').textContent = `$${gstsEfectivoHoy.toFixed(2)}`;
+      document.getElementById('lbl-efectivo-esperado').textContent = `$${totalEsperadoCaja.toFixed(2)}`;
+
+      calcularDiferencia();
+    }
+
+    function calcularDiferencia() {
+      const inputReal = document.getElementById('input-efectivo-real');
+      const box = document.getElementById('box-diferencia');
+
+      if (inputReal.value === '') {
+        box.classList.add('hidden');
+        return;
+      }
+
+      const real = parseFloat(inputReal.value) || 0;
+      const dif = real - totalEsperadoCaja;
+
+      box.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200', 'bg-red-50', 'text-red-700', 'border-red-200', 'bg-amber-50', 'text-amber-700', 'border-amber-200');
+
+      if (Math.abs(dif) < 0.01) {
+        box.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+        box.innerHTML = '<i class="fa-solid fa-circle-check"></i> ¡Caja perfectamente cuadrada!';
+      } else if (dif > 0) {
+        box.classList.add('bg-amber-50', 'text-amber-700', 'border-amber-200');
+        box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Sobrante en caja: +$${dif.toFixed(2)}`;
+      } else {
+        box.classList.add('bg-red-50', 'text-red-700', 'border-red-200');
+        box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Faltante en caja: -$${Math.abs(dif).toFixed(2)}`;
+      }
+    }
+
+    async function guardarCierreCaja() {
+      const db = window._supabase || window.supabase;
+      const inputReal = document.getElementById('input-efectivo-real');
+
+      if (inputReal.value === '') {
+        alert('Ingresa el monto del efectivo contado en caja.');
+        return;
+      }
+
+      const real = parseFloat(inputReal.value) || 0;
+      const baseInicial = parseFloat(document.getElementById('input-base-inicial').value) || 0;
+      const dif = real - totalEsperadoCaja;
+
+      let estado = 'Cuadrado';
+      if (dif > 0) estado = 'Sobrante';
+      if (dif < 0) estado = 'Faltante';
+
+      const payload = {
+        fecha: new Date().toISOString().split('T')[0],
+        monto_inicial: baseInicial,
+        ventas_efectivo: vtsEfectivoHoy,
+        gastos_efectivo: gstsEfectivoHoy,
+        efectivo_esperado: totalEsperadoCaja,
+        efectivo_contado: real,
+        diferencia: dif,
+        estado: estado
+      };
+
+      const { error } = await db.from('cierres_caja').insert([payload]);
+
+      if (error) {
+        alert('Error al guardar el cierre de caja: ' + error.message);
+        return;
+      }
+
+      alert('¡Cierre de caja registrado exitosamente!');
+      inputReal.value = '';
+      document.getElementById('box-diferencia').classList.add('hidden');
+      cargarHistorialCierres();
+    }
+
+    async function cargarHistorialCierres() {
+      const db = window._supabase || window.supabase;
+      const contenedor = document.getElementById('lista-cierres');
+      if (!contenedor || !db) return;
+
+      const { data, error } = await db.from('cierres_caja').select('*').order('created_at', { ascending: false });
+
+      if (error || !data || data.length === 0) {
+        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No hay cierres registrados aún.</p>';
+        return;
+      }
+
+      contenedor.innerHTML = '';
+      data.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'p-2.5 bg-gray-50 rounded-xl border text-xs flex justify-between items-center';
+
+        let badgeColor = 'text-emerald-600 bg-emerald-50 border-emerald-200';
+        if (c.estado === 'Faltante') badgeColor = 'text-red-600 bg-red-50 border-red-200';
+        if (c.estado === 'Sobrante') badgeColor = 'text-amber-600 bg-amber-50 border-amber-200';
+
+        item.innerHTML = `
+          <div>
+            <p class="font-bold text-slate-800">${c.fecha} <span class="text-[9px] px-1.5 py-0.5 rounded border ${badgeColor}">${c.estado}</span></p>
+            <p class="text-[10px] text-gray-400">Esperado: $${Number(c.efectivo_esperado).toFixed(2)} | Contado: $${Number(c.efectivo_contado).toFixed(2)}</p>
+          </div>
+          <span class="font-extrabold text-slate-900">$${Number(c.efectivo_contado).toFixed(2)}</span>
+        `;
+        contenedor.appendChild(item);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof cargarDatosGlobales === 'function') {
+        await cargarDatosGlobales();
+      }
+      calcularCaja();
+      cargarHistorialCierres();
+    });
+  </script>
+</body>
+</html>
