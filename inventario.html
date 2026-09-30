@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi POS - Productos</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SDK de Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -61,19 +60,13 @@
     </div>
   </main>
 
-  <!-- Script global de la aplicación -->
   <script src="app.js"></script>
-
   <script>
-    // Se definen los alias para evitar que dé error tanto si usas _supabase como si usas supabase
-    const clientSupabase = window._supabase || window.supabase;
-
     function renderProductos() {
       const lista = document.getElementById('lista-productos');
       if (!lista) return;
       lista.innerHTML = '';
 
-      // Verifica que exista la variable global productos traída desde app.js
       const listaProds = window.productos || [];
 
       if (listaProds.length === 0) {
@@ -96,11 +89,10 @@
       const precio = parseFloat(document.getElementById('prod-precio').value);
       const stock = parseInt(document.getElementById('prod-stock').value) || 0;
 
-      // Obtener referencia al cliente
       const db = window._supabase || window.supabase;
 
       if (!db) {
-        alert('Error: Supabase no está inicializado en app.js');
+        alert('Error: Supabase no está inicializado');
         return;
       }
 
@@ -135,7 +127,6 @@
       }
     }
 
-    // Ejecutar renderizado al cargar la página
     document.addEventListener('DOMContentLoaded', async () => {
       if (typeof cargarDatosGlobales === 'function') {
         await cargarDatosGlobales();
