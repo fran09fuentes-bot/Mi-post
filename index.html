@@ -23,7 +23,7 @@
   </header>
 
   <main class="p-4 max-w-lg mx-auto space-y-4">
-    <!-- Cuadrícula de 4 Tarjetas -->
+    <!-- Cuadrícula de 4 Tarjetas de Métricas -->
     <div class="grid grid-cols-2 gap-2.5">
       <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
         <span class="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
@@ -58,7 +58,7 @@
       </div>
     </div>
 
-    <!-- Barra de resumen -->
+    <!-- Barra de resumen rápida -->
     <div class="bg-slate-900 text-white p-3 rounded-2xl flex justify-around text-center text-xs shadow-inner">
       <div>
         <p class="text-[10px] text-gray-400">Ventas Acum.</p>
@@ -74,23 +74,26 @@
       </div>
     </div>
 
-    <!-- Navegacion -->
-    <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold">
-      <a href="index.html" class="flex-1 text-center py-2 rounded-lg bg-white shadow text-slate-900 font-bold">
+    <!-- Navegación con opción de Caja -->
+    <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold overflow-x-auto">
+      <a href="index.html" class="flex-1 text-center py-2 px-2 rounded-lg bg-white shadow text-slate-900 font-bold whitespace-nowrap">
         <i class="fa-solid fa-cart-plus"></i> Vender
       </a>
-      <a href="inventario.html" class="flex-1 text-center py-2 rounded-lg text-gray-600">
+      <a href="inventario.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
         <i class="fa-solid fa-boxes-stacked"></i> Productos
       </a>
-      <a href="gastos.html" class="flex-1 text-center py-2 rounded-lg text-gray-600">
+      <a href="gastos.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
         <i class="fa-solid fa-wallet"></i> Gastos
       </a>
-      <a href="historial.html" class="flex-1 text-center py-2 rounded-lg text-gray-600">
+      <a href="caja.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-cash-register"></i> Caja
+      </a>
+      <a href="historial.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
         <i class="fa-solid fa-receipt"></i> Historial
       </a>
     </nav>
 
-    <!-- Seleccion de Producto -->
+    <!-- Selección de Producto -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
       <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
         <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
@@ -104,6 +107,7 @@
           <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
         </div>
 
+        <!-- Selector de Método de Pago -->
         <div class="flex justify-between items-center text-xs pt-1 border-t">
           <span class="text-gray-500 font-medium">Metodo de Pago:</span>
           <select id="select-metodo-pago" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white">
