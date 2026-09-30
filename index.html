@@ -23,7 +23,7 @@
   </header>
 
   <main class="p-4 max-w-lg mx-auto space-y-4">
-    <!-- Tarjetas de Métricas -->
+    <!-- Métricas del Día -->
     <div class="grid grid-cols-2 gap-3">
       <div class="bg-white p-3 rounded-2xl border shadow-sm">
         <span class="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
@@ -41,7 +41,7 @@
       </div>
     </div>
 
-    <!-- Barra de resumen rápida -->
+    <!-- Resumen rápido -->
     <div class="bg-slate-900 text-white p-3 rounded-2xl flex justify-around text-center text-xs shadow-inner">
       <div>
         <p class="text-[10px] text-gray-400">Ventas Brutas</p>
@@ -79,16 +79,26 @@
         <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
       </h3>
 
-      <!-- Grid donde se dibujan los productos -->
+      <!-- Grid del Catálogo con alertas de stock -->
       <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1"></div>
 
-      <!-- Detalle del Producto Seleccionado -->
-      <div class="p-3 bg-gray-50 rounded-xl border space-y-2">
+      <!-- Detalle y Método de Pago -->
+      <div class="p-3 bg-gray-50 rounded-xl border space-y-2.5">
         <div class="flex justify-between items-center text-xs">
           <span class="text-gray-500">Seleccionado:</span>
           <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
         </div>
-        
+
+        <!-- Selector de Método de Pago -->
+        <div class="flex justify-between items-center text-xs pt-1 border-t">
+          <span class="text-gray-500 font-medium">Método de Pago:</span>
+          <select id="select-metodo-pago" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white">
+            <option value="Efectivo">💵 Efectivo</option>
+            <option value="Transferencia">🏦 Transferencia</option>
+            <option value="Tarjeta">💳 Tarjeta</option>
+          </select>
+        </div>
+
         <div class="flex justify-between items-center pt-2 border-t">
           <div class="flex items-center gap-2">
             <button onclick="cambiarCantidad(-1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">-</button>
@@ -121,23 +131,42 @@
       const lista = window.productos || [];
 
       if (lista.length === 0) {
-        grid.innerHTML = '<p class="col-span-2 text-xs text-gray-400 text-center py-4">No hay productos disponibles. Agrégalos en la pestaña Productos.</p>';
+        grid.innerHTML = '<p class="col-span-2 text-xs text-gray-400 text-center py-4">No hay productos disponibles.</p>';
         return;
       }
 
       lista.forEach(p => {
         const card = document.createElement('div');
         const esSeleccionado = productoSeleccionado && productoSeleccionado.id === p.id;
+        const stock = p.stock ?? 0;
+
+        let badgeStock = `<span class="text-[10px] text-gray-400">Stock: ${stock}</span>`;
+        if (stock <= 0) {
+          badgeStock = `<span class="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Agotado</span>`;
+        } else if (stock <= 3) {
+          badgeStock = `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">¡Quedan ${stock}!</span>`;
+        }
         
         card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
           esSeleccionado ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
-        }`;
+        } ${stock <= 0 ? 'opacity-60' : ''}`;
         
-        card.onclick = () => seleccionarProducto(p);
+        card.onclick = () => {
+          if (stock <= 0) {
+            alert('Este producto se encuentra agotado.');
+            return;
+          }
+          seleccionarProducto(p);
+        };
+
         card.innerHTML = `
-          <p class="font-bold text-xs text-slate-800 truncate">${p.nombre}</p>
-          <p class="text-emerald-600 font-extrabold text-xs">$${Number(p.precio || 0).toFixed(2)}</p>
-          <p class="text-[10px] text-gray-400">Stock: ${p.stock ?? 'N/A'}</p>
+          <div class="flex justify-between items-start gap-1">
+            <p class="font-bold text-xs text-slate-800 truncate">${p.nombre}</p>
+          </div>
+          <div class="flex justify-between items-end mt-1">
+            <p class="text-emerald-600 font-extrabold text-xs">$${Number(p.precio || 0).toFixed(2)}</p>
+            ${badgeStock}
+          </div>
         `;
         grid.appendChild(card);
       });
@@ -152,8 +181,13 @@
 
     function cambiarCantidad(delta) {
       if (!productoSeleccionado) return;
-      cantidadSeleccionada = Math.max(1, cantidadSeleccionada + delta);
-      actualizarResumenSeleccion();
+      const nuevoValor = cantidadSeleccionada + delta;
+      if (nuevoValor >= 1 && (productoSeleccionado.stock === null || nuevoValor <= productoSeleccionado.stock)) {
+        cantidadSeleccionada = nuevoValor;
+        actualizarResumenSeleccion();
+      } else if (nuevoValor > productoSeleccionado.stock) {
+        alert(`Alcanzaste el límite de stock disponible (${productoSeleccionado.stock} u.)`);
+      }
     }
 
     function actualizarResumenSeleccion() {
@@ -179,8 +213,10 @@
         return;
       }
 
+      const metodoPago = document.getElementById('select-metodo-pago').value;
+
       if (typeof registrarVenta === 'function') {
-        await registrarVenta(productoSeleccionado, cantidadSeleccionada);
+        await registrarVenta(productoSeleccionado, cantidadSeleccionada, metodoPago);
         productoSeleccionado = null;
         cantidadSeleccionada = 1;
         actualizarResumenSeleccion();
