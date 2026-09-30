@@ -2,7 +2,6 @@
 const SUPABASE_URL = 'https://cdwvzbugtrxsgefzpadz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gWOLb2P47i8qiQuSAnAldA_54neh6U7';
 
-// Inicialización del cliente de Supabase
 let _supabase;
 if (window.supabase && typeof window.supabase.createClient === 'function') {
   _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -10,7 +9,6 @@ if (window.supabase && typeof window.supabase.createClient === 'function') {
   console.error("Librería de Supabase no encontrada en el HTML");
 }
 
-// Para asegurar compatibilidad en todas las páginas
 window._supabase = _supabase;
 window.supabaseClient = _supabase;
 
@@ -24,24 +22,15 @@ async function cargarDatosGlobales() {
   if (!_supabase) return;
 
   try {
-    // 1. Cargar productos
-    const { data: prods, error: errProds } = await _supabase
-      .from('productos')
-      .select('*');
+    const { data: prods, error: errProds } = await _supabase.from('productos').select('*');
     if (errProds) console.error("Error al cargar productos:", errProds);
     else window.productos = prods || [];
 
-    // 2. Cargar ventas
-    const { data: vts, error: errVts } = await _supabase
-      .from('ventas')
-      .select('*');
+    const { data: vts, error: errVts } = await _supabase.from('ventas').select('*');
     if (errVts) console.error("Error al cargar ventas:", errVts);
     else window.ventas = vts || [];
 
-    // 3. Cargar gastos
-    const { data: gsts, error: errGsts } = await _supabase
-      .from('gastos')
-      .select('*');
+    const { data: gsts, error: errGsts } = await _supabase.from('gastos').select('*');
     if (errGsts) console.error("Error al cargar gastos:", errGsts);
     else window.gastos = gsts || [];
 
@@ -50,11 +39,19 @@ async function cargarDatosGlobales() {
   }
 }
 
-// REGISTRAR VENTA (Corregido con fecha ISO limpia)
-async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
+// REGISTRAR VENTA CON DESCUENTO DE STOCK Y MÉTODO DE PAGO
+async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efectivo', descuento = 0) {
   if (!_supabase) {
     alert("Error: Supabase no está conectado.");
     return;
+  }
+
+  // Verificar Stock
+  if (productoSeleccionado.stock !== null && productoSeleccionado.stock !== undefined) {
+    if (productoSeleccionado.stock < cantidad) {
+      alert(`Stock insuficiente. Solo quedan ${productoSeleccionado.stock} unidades de ${productoSeleccionado.nombre}.`);
+      return;
+    }
   }
 
   try {
@@ -67,7 +64,8 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
     const gananciaBruta = (precioUnitario - costoUnitario) * cantidad - descuento;
     const reinversion = costoUnitario * cantidad;
 
-    const { error } = await _supabase
+    // 1. Insertar la venta
+    const { error: errVenta } = await _supabase
       .from('ventas')
       .insert([
         {
@@ -84,6 +82,7 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
           gananciaNeta: gananciaBruta,
           ganancia_neta: gananciaBruta,
           reinversion: reinversion,
+          metodo_pago: metodoPago,
           detalles_productos: [
             {
               id: productoSeleccionado.id,
@@ -93,12 +92,20 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
               total: totalVenta
             }
           ],
-          // ✅ FECHA EN FORMATO ISO ESTÁNDAR (Elimina el error de "p.m.")
           fecha: new Date().toISOString()
         }
       ]);
 
-    if (error) throw error;
+    if (errVenta) throw errVenta;
+
+    // 2. Descontar Stock si el producto tiene stock gestionado
+    if (productoSeleccionado.stock !== null && productoSeleccionado.stock !== undefined) {
+      const nuevoStock = Math.max(0, productoSeleccionado.stock - cantidad);
+      await _supabase
+        .from('productos')
+        .update({ stock: nuevoStock })
+        .eq('id', productoSeleccionado.id);
+    }
 
     alert('¡Venta registrada con éxito!');
     await cargarDatosGlobales();
@@ -109,19 +116,18 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
   }
 }
 
-// Cargar datos automáticamente al iniciar cualquier página
-document.addEventListener('DOMContentLoaded', () => {
-  cargarDatosGlobales();
-});
-// ELIMINAR VENTA
+// ELIMINAR VENTA Y RESTAURAR STOCK
 async function eliminarVenta(id) {
   if (!_supabase) {
     alert("Error: Supabase no está conectado.");
     return;
   }
 
-  if (confirm('¿Estás seguro de que deseas eliminar esta venta registrada?')) {
+  if (confirm('¿Estás seguro de que deseas eliminar esta venta registrada? El stock vendido será devuelto al inventario.')) {
     try {
+      // Buscar la venta a eliminar para saber qué producto devolver
+      const ventaAEliminar = (window.ventas || []).find(v => v.id === id);
+
       const { error } = await _supabase
         .from('ventas')
         .delete()
@@ -129,10 +135,21 @@ async function eliminarVenta(id) {
 
       if (error) throw error;
 
-      alert('Venta eliminada con éxito.');
+      // Devolver Stock
+      if (ventaAEliminar && ventaAEliminar.producto_id) {
+        const prod = (window.productos || []).find(p => p.id === ventaAEliminar.producto_id);
+        if (prod && prod.stock !== null && prod.stock !== undefined) {
+          const cantidadDevuelta = ventaAEliminar.cantidad || 1;
+          await _supabase
+            .from('productos')
+            .update({ stock: prod.stock + cantidadDevuelta })
+            .eq('id', prod.id);
+        }
+      }
+
+      alert('Venta eliminada y stock devuelto correctamente.');
       await cargarDatosGlobales();
 
-      // Si existe la función de renderizado en la página actual, la ejecutamos
       if (typeof renderHistorial === 'function') {
         renderHistorial();
       }
@@ -142,3 +159,7 @@ async function eliminarVenta(id) {
     }
   }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatosGlobales();
+});
