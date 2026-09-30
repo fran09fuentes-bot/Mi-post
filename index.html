@@ -9,8 +9,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .hide-scrollbar::-webkit-scrollbar { display: none; }
-    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800 pb-20">
@@ -18,56 +16,46 @@
   <header class="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md flex justify-between items-center">
     <div>
       <h1 class="font-bold text-lg flex items-center gap-2">
-        <i class="fa-solid fa-store text-emerald-400"></i> Mi POS Negocio
+        <i class="fa-solid fa-boxes-stacked text-emerald-400"></i> Mi POS Negocio
       </h1>
       <p class="text-xs text-gray-400">Punto de Venta</p>
-    </div>
-    <div class="flex gap-1.5">
-      <button onclick="exportarCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 shadow">
-        <i class="fa-solid fa-file-csv"></i> CSV
-      </button>
-      <button onclick="copiarResumen()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium flex items-center gap-1 shadow">
-        <i class="fa-solid fa-download"></i> Copia
-      </button>
     </div>
   </header>
 
   <main class="p-4 max-w-lg mx-auto space-y-4">
-    <!-- Dashboard -->
-    <section class="grid grid-cols-2 gap-3">
-      <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200">
-        <div class="flex items-center gap-1.5 text-emerald-600 mb-1">
-          <i class="fa-solid fa-chart-line text-xs"></i>
-          <span class="text-[10px] font-bold uppercase tracking-wider">Ganancia Neta</span>
-        </div>
-        <div id="dash-ganancia-neta" class="text-lg font-extrabold text-gray-900">$0.00</div>
-        <p class="text-[9px] text-gray-400 mt-0.5">Utilidad real</p>
+    <!-- Tarjetas de Métricas -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-white p-3 rounded-2xl border shadow-sm">
+        <span class="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-chart-line"></i> Ganancia Neta
+        </span>
+        <h2 id="total-ganancia-neta" class="text-lg font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Utilidad real</p>
       </div>
+      <div class="bg-white p-3 rounded-2xl border shadow-sm">
+        <span class="text-[10px] font-bold text-blue-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-piggy-bank"></i> Reinversión
+        </span>
+        <h2 id="total-reinversion" class="text-lg font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Reposición de inventario</p>
+      </div>
+    </div>
 
-      <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200">
-        <div class="flex items-center gap-1.5 text-blue-600 mb-1">
-          <i class="fa-solid fa-piggy-bank text-xs"></i>
-          <span class="text-[10px] font-bold uppercase tracking-wider">Reinversión</span>
-        </div>
-        <div id="dash-reinversion" class="text-lg font-extrabold text-gray-900">$0.00</div>
-        <p class="text-[9px] text-gray-400 mt-0.5">Reposición de inventario</p>
-      </div>
-    </section>
-
-    <section class="bg-slate-900 text-white p-3.5 rounded-2xl shadow-md grid grid-cols-3 gap-2 text-center text-xs">
+    <!-- Barra de resumen rápida -->
+    <div class="bg-slate-900 text-white p-3 rounded-2xl flex justify-around text-center text-xs shadow-inner">
       <div>
-        <span class="text-[10px] text-gray-400 block">Ventas Brutas</span>
-        <span id="dash-total-bruto" class="font-bold text-white text-sm">$0.00</span>
+        <p class="text-[10px] text-gray-400">Ventas Brutas</p>
+        <p id="total-ventas-brutas" class="font-bold text-emerald-400">$0.00</p>
       </div>
       <div>
-        <span class="text-[10px] text-gray-400 block">Gastos Fijos</span>
-        <span id="dash-total-gastos" class="font-bold text-red-400 text-sm">$0.00</span>
+        <p class="text-[10px] text-gray-400">Gastos Fijos</p>
+        <p id="total-gastos" class="font-bold text-rose-400">$0.00</p>
       </div>
       <div>
-        <span class="text-[10px] text-gray-400 block">Ventas Reg.</span>
-        <span id="dash-cant-ventas" class="font-bold text-emerald-400 text-sm">0</span>
+        <p class="text-[10px] text-gray-400">Ventas Reg.</p>
+        <p id="cant-ventas" class="font-bold text-emerald-400">0</p>
       </div>
-    </section>
+    </div>
 
     <!-- Navegación -->
     <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold">
@@ -85,127 +73,155 @@
       </a>
     </nav>
 
-    <!-- Alerta de Stock Crítico -->
-    <div id="alerta-stock" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-xl flex items-center justify-between shadow-sm">
-      <div class="flex items-center gap-2 text-xs font-bold text-amber-800">
-        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base"></i>
-        <span id="cant-stock-critico">0 productos con stock crítico (≤ 3 unidades).</span>
-      </div>
-      <a href="inventario.html" class="bg-amber-200 hover:bg-amber-300 text-amber-900 text-[10px] font-bold px-2 py-1 rounded-lg">Ver</a>
-    </div>
-
-    <!-- Sección Vender -->
-    <section class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
-      <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider flex items-center gap-2 border-b pb-2">
+    <!-- Selección de Producto -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
         <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
-      </h2>
-      <div id="grid-productos-venta" class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto p-0.5 hide-scrollbar"></div>
-      
-      <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2">
-        <div class="flex justify-between items-center text-xs text-gray-500">
-          <span>Seleccionado:</span>
-          <span id="cart-item-name" class="font-bold text-gray-800">Ninguno</span>
+      </h3>
+
+      <!-- Grid donde se dibujan los productos -->
+      <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1"></div>
+
+      <!-- Detalle del Producto Seleccionado -->
+      <div class="p-3 bg-gray-50 rounded-xl border space-y-2">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-gray-500">Seleccionado:</span>
+          <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
         </div>
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-2 bg-white border rounded-xl p-1">
-            <button onclick="updateQty(-1)" class="w-7 h-7 rounded-lg bg-gray-100 font-bold text-gray-700 active:bg-gray-300">-</button>
-            <span id="cart-qty" class="w-5 text-center font-bold text-xs">1</span>
-            <button onclick="updateQty(1)" class="w-7 h-7 rounded-lg bg-gray-100 font-bold text-gray-700 active:bg-gray-300">+</button>
+        
+        <div class="flex justify-between items-center pt-2 border-t">
+          <div class="flex items-center gap-2">
+            <button onclick="cambiarCantidad(-1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">-</button>
+            <span id="label-cantidad" class="font-bold text-xs px-2">1</span>
+            <button onclick="cambiarCantidad(1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">+</button>
           </div>
           <div class="text-right">
-            <div class="text-[9px] text-gray-400">Total</div>
-            <div id="cart-total-price" class="text-base font-black text-emerald-600">$0.00</div>
+            <p class="text-[10px] text-gray-400">Total</p>
+            <p id="label-total" class="text-sm font-extrabold text-emerald-600">$0.00</p>
           </div>
         </div>
       </div>
 
-      <button onclick="completarVenta()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-3 rounded-xl font-bold text-xs shadow transition flex justify-center items-center gap-2">
-        <i class="fa-solid fa-check-circle"></i> Registrar Venta
+      <button onclick="confirmarVenta()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-2">
+        <i class="fa-solid fa-circle-check"></i> Registrar Venta
       </button>
-    </section>
+    </div>
   </main>
 
   <script src="app.js"></script>
   <script>
-    let selectedProd = null;
-    let selectedQty = 1;
+    let productoSeleccionado = null;
+    let cantidadSeleccionada = 1;
 
-    function renderProductosVenta() {
-      const grid = document.getElementById('grid-productos-venta');
+    function renderGridProductos() {
+      const grid = document.getElementById('grid-productos');
       if (!grid) return;
       grid.innerHTML = '';
-      let criticos = 0;
 
-      productos.forEach(p => {
-        if (p.stock !== undefined && p.stock !== null && p.stock <= 3) criticos++;
+      const lista = window.productos || [];
 
-        const isSelected = selectedProd && selectedProd.id === p.id;
-        const card = document.createElement('div');
-        card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition ${isSelected ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500' : 'border-gray-200 bg-gray-50'}`;
-        card.onclick = () => { selectedProd = p; selectedQty = 1; updateCart(); renderProductosVenta(); };
-        card.innerHTML = `<div class="font-bold text-xs truncate">${p.nombre}</div><div class="text-sm font-black text-emerald-600">$${Number(p.precio).toFixed(2)}</div><div class="text-[9px] text-gray-400">Stock: ${p.stock ?? 'N/A'}</div>`;
-        grid.appendChild(card);
-      });
-
-      const alertaBox = document.getElementById('alerta-stock');
-      const cantText = document.getElementById('cant-stock-critico');
-      if (alertaBox && cantText) {
-        if (criticos > 0) {
-          cantText.innerText = `${criticos} productos con stock crítico (≤ 3 unidades).`;
-          alertaBox.classList.remove('hidden');
-        } else {
-          alertaBox.classList.add('hidden');
-        }
-      }
-    }
-
-    function updateQty(delta) {
-      if (!selectedProd) return;
-      selectedQty = Math.max(1, selectedQty + delta);
-      updateCart();
-    }
-
-    function updateCart() {
-      document.getElementById('cart-item-name').innerText = selectedProd ? selectedProd.nombre : 'Ninguno';
-      document.getElementById('cart-qty').innerText = selectedQty;
-      const total = selectedProd ? selectedProd.precio * selectedQty : 0;
-      document.getElementById('cart-total-price').innerText = `$${total.toFixed(2)}`;
-    }
-
-    async function completarVenta() {
-      if (!selectedProd) return alert('Selecciona un producto');
-      const ingreso = selectedProd.precio * selectedQty;
-      const reinversion = selectedProd.costo * selectedQty;
-      const gananciaBruta = ingreso - reinversion;
-      const fecha = new Date().toLocaleDateString('es-SV') + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-      const nuevaVenta = {
-        fecha,
-        producto: selectedProd.nombre,
-        cantidad: selectedQty,
-        ingreso, 
-        reinversion, 
-        gananciaBruta
-      };
-
-      const { data, error } = await _supabase.from('ventas').insert([nuevaVenta]).select();
-
-      if (error) {
-        alert('Error al registrar venta en Supabase: ' + error.message);
+      if (lista.length === 0) {
+        grid.innerHTML = '<p class="col-span-2 text-xs text-gray-400 text-center py-4">No hay productos disponibles. Agrégalos en la pestaña Productos.</p>';
         return;
       }
 
-      if (selectedProd.stock !== undefined && selectedProd.stock !== null) {
-        const nuevoStock = Math.max(0, selectedProd.stock - selectedQty);
-        await _supabase.from('productos').update({ stock: nuevoStock }).eq('id', selectedProd.id);
+      lista.forEach(p => {
+        const card = document.createElement('div');
+        const esSeleccionado = productoSeleccionado && productoSeleccionado.id === p.id;
+        
+        card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+          esSeleccionado ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
+        }`;
+        
+        card.onclick = () => seleccionarProducto(p);
+        card.innerHTML = `
+          <p class="font-bold text-xs text-slate-800 truncate">${p.nombre}</p>
+          <p class="text-emerald-600 font-extrabold text-xs">$${Number(p.precio || 0).toFixed(2)}</p>
+          <p class="text-[10px] text-gray-400">Stock: ${p.stock ?? 'N/A'}</p>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function seleccionarProducto(p) {
+      productoSeleccionado = p;
+      cantidadSeleccionada = 1;
+      actualizarResumenSeleccion();
+      renderGridProductos();
+    }
+
+    function cambiarCantidad(delta) {
+      if (!productoSeleccionado) return;
+      cantidadSeleccionada = Math.max(1, cantidadSeleccionada + delta);
+      actualizarResumenSeleccion();
+    }
+
+    function actualizarResumenSeleccion() {
+      const lblNombre = document.getElementById('label-producto-nombre');
+      const lblCant = document.getElementById('label-cantidad');
+      const lblTotal = document.getElementById('label-total');
+
+      if (productoSeleccionado) {
+        lblNombre.textContent = productoSeleccionado.nombre;
+        lblCant.textContent = cantidadSeleccionada;
+        const total = (Number(productoSeleccionado.precio) || 0) * cantidadSeleccionada;
+        lblTotal.textContent = `$${total.toFixed(2)}`;
+      } else {
+        lblNombre.textContent = 'Ninguno';
+        lblCant.textContent = '1';
+        lblTotal.textContent = '$0.00';
+      }
+    }
+
+    async function confirmarVenta() {
+      if (!productoSeleccionado) {
+        alert('Por favor selecciona un producto para realizar la venta.');
+        return;
       }
 
-      selectedProd = null;
-      selectedQty = 1;
-      updateCart();
-      await cargarDatosGlobales();
-      alert('Venta realizada con éxito');
+      if (typeof registrarVenta === 'function') {
+        await registrarVenta(productoSeleccionado, cantidadSeleccionada);
+        productoSeleccionado = null;
+        cantidadSeleccionada = 1;
+        actualizarResumenSeleccion();
+        renderGridProductos();
+        actualizarMetricasUI();
+      }
     }
+
+    function actualizarMetricasUI() {
+      const vts = window.ventas || [];
+      const gsts = window.gastos || [];
+
+      let totalBruto = 0;
+      let totalNeta = 0;
+      let totalReinversion = 0;
+
+      vts.forEach(v => {
+        totalBruto += Number(v.total || v.ingreso || 0);
+        totalNeta += Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || 0);
+        totalReinversion += Number(v.reinversion || 0);
+      });
+
+      let totalGastos = 0;
+      gsts.forEach(g => {
+        totalGastos += Number(g.monto || g.precio || 0);
+      });
+
+      document.getElementById('total-ventas-brutas').textContent = `$${totalBruto.toFixed(2)}`;
+      document.getElementById('total-ganancia-neta').textContent = `$${(totalNeta - totalGastos).toFixed(2)}`;
+      document.getElementById('total-reinversion').textContent = `$${totalReinversion.toFixed(2)}`;
+      document.getElementById('total-gastos').textContent = `$${totalGastos.toFixed(2)}`;
+      document.getElementById('cant-ventas').textContent = vts.length;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof cargarDatosGlobales === 'function') {
+        await cargarDatosGlobales();
+      }
+      renderGridProductos();
+      actualizarMetricasUI();
+    });
   </script>
 </body>
 </html>
