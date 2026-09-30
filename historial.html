@@ -65,7 +65,7 @@
     <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
       <div class="flex justify-between items-center border-b pb-2">
         <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-          <i class="fa-solid fa-bullseye text-indigo-500"></i> Meta Mensual (Supabase)
+          <i class="fa-solid fa-bullseye text-indigo-500"></i> Meta Mensual
         </h3>
         <div class="flex items-center gap-1">
           <span class="text-xs text-gray-500">$</span>
@@ -93,6 +93,26 @@
       </div>
     </div>
 
+    <!-- Filtro por Fechas -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5 border-b pb-2">
+        <i class="fa-solid fa-filter text-indigo-600"></i> Filtrar Ventas por Fecha
+      </h3>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <label class="block text-[11px] text-gray-500 mb-1">Desde:</label>
+          <input type="date" id="fecha-inicio" onchange="renderHistorial()" class="w-full border rounded-lg p-2 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-500 mb-1">Hasta:</label>
+          <input type="date" id="fecha-fin" onchange="renderHistorial()" class="w-full border rounded-lg p-2 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+      </div>
+      <button onclick="limpiarFiltroFechas()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-1.5 rounded-lg text-xs">
+        Limpiar Filtro
+      </button>
+    </div>
+
     <!-- Lista de Últimas Ventas -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
       <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
@@ -116,6 +136,12 @@
       }
     }
 
+    function limpiarFiltroFechas() {
+      document.getElementById('fecha-inicio').value = '';
+      document.getElementById('fecha-fin').value = '';
+      renderHistorial();
+    }
+
     function renderHistorial() {
       const contenedor = document.getElementById('lista-historial-ventas');
       const ventas = window.ventas || [];
@@ -134,27 +160,23 @@
         const fechaStr = fechaVenta.toISOString().split('T')[0];
         const monto = Number(v.total || v.ingreso || 0);
 
-        // Ventas de Hoy
         if (fechaStr === hoyStr) {
           totalHoy += monto;
           cantHoy++;
         }
 
-        // Ventas del Mes
         if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
           totalMes += monto;
           cantMes++;
         }
       });
 
-      // Actualizar tarjetas resumen
       document.getElementById('total-ventas-hoy').textContent = `$${totalHoy.toFixed(2)}`;
       document.getElementById('cant-ventas-hoy').textContent = `${cantHoy} ventas`;
 
       document.getElementById('total-ventas-mes').textContent = `$${totalMes.toFixed(2)}`;
       document.getElementById('cant-ventas-mes').textContent = `${cantMes} ventas`;
 
-      // Calcular progreso de la Meta
       const pctMeta = Math.min(100, (totalMes / metaMensualVal) * 100);
       document.getElementById('texto-progreso-meta').textContent = `${pctMeta.toFixed(0)}% ($${totalMes.toFixed(2)} / $${metaMensualVal.toFixed(2)})`;
       document.getElementById('porcentaje-centro').textContent = `${pctMeta.toFixed(0)}%`;
@@ -164,15 +186,34 @@
         circle.setAttribute('stroke-dasharray', `${pctMeta}, 100`);
       }
 
-      // Renderizar Lista de Ventas
+      // Aplicar Filtro de Fechas para la lista
+      const fechaInicio = document.getElementById('fecha-inicio').value;
+      const fechaFin = document.getElementById('fecha-fin').value;
+
+      let ventasFiltradas = ventas.slice().reverse();
+
+      if (fechaInicio) {
+        ventasFiltradas = ventasFiltradas.filter(v => {
+          const f = new Date(v.fecha || v.created_at).toISOString().split('T')[0];
+          return f >= fechaInicio;
+        });
+      }
+
+      if (fechaFin) {
+        ventasFiltradas = ventasFiltradas.filter(v => {
+          const f = new Date(v.fecha || v.created_at).toISOString().split('T')[0];
+          return f <= fechaFin;
+        });
+      }
+
       if (!contenedor) return;
-      if (ventas.length === 0) {
-        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No hay ventas registradas aún.</p>';
+      if (ventasFiltradas.length === 0) {
+        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No hay ventas registradas en el periodo seleccionado.</p>';
         return;
       }
 
       contenedor.innerHTML = '';
-      ventas.slice().reverse().forEach(v => {
+      ventasFiltradas.forEach(v => {
         const item = document.createElement('div');
         item.className = 'p-3 bg-gray-50 rounded-xl border flex justify-between items-center text-xs';
         const fecha = new Date(v.fecha || v.created_at || Date.now()).toLocaleString();
@@ -186,7 +227,7 @@
           </div>
           <div class="text-right space-y-1">
             <p class="font-extrabold text-emerald-600 text-sm">$${Number(v.total || v.ingreso || 0).toFixed(2)}</p>
-            <button onclick="eliminarVenta('${v.id}')" class="text-rose-600 hover:bg-rose-50 p-1 rounded text-[11px]">
+            <button onclick="eliminarVenta('${v.id}')" class="text-rose-600 hover:bg-rose-50 p-1 rounded text-[11px]" title="Eliminar Venta">
               <i class="fa-solid fa-trash"></i>
             </button>
           </div>
