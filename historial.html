@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi POS - Historial y Métricas</title>
+  <title>Mi POS - Historial</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -19,12 +19,12 @@
       <h1 class="font-bold text-lg flex items-center gap-2">
         <i class="fa-solid fa-boxes-stacked text-emerald-400"></i> Mi POS Negocio
       </h1>
-      <p class="text-xs text-gray-400">Historial y Análisis de Ventas</p>
+      <p class="text-xs text-gray-400">Historial de Ventas</p>
     </div>
   </header>
 
   <main class="p-4 max-w-lg mx-auto space-y-4">
-    <!-- Navegación -->
+    <!-- Navegacion -->
     <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold">
       <a href="index.html" class="flex-1 text-center py-2 rounded-lg text-gray-600">
         <i class="fa-solid fa-cart-plus"></i> Vender
@@ -59,7 +59,7 @@
       </div>
     </div>
 
-    <!-- Meta Mensual y Gráfica -->
+    <!-- Meta Mensual y Grafica -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
       <div class="flex justify-between items-center border-b pb-2">
         <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
@@ -84,22 +84,21 @@
       </div>
     </div>
 
-    <!-- Top 3 Productos Más Vendidos -->
+    <!-- Top 3 Productos -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-2">
       <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5 border-b pb-2">
-        <i class="fa-solid fa-trophy text-amber-500"></i> Top Productos Más Vendidos
+        <i class="fa-solid fa-trophy text-amber-500"></i> Top Productos Mas Vendidos
       </h3>
       <div id="top-productos" class="space-y-1.5 pt-1"></div>
     </div>
 
-    <!-- Lista de Ventas con Filtro por Rango de Fecha -->
+    <!-- Lista de Ventas con Filtros de Fecha -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
       <div class="flex justify-between items-center border-b pb-2">
         <h2 class="font-bold text-gray-800 text-xs uppercase tracking-wider flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> Ventas
         </h2>
         
-        <!-- Filtros Rápidos de Fecha -->
         <div class="flex gap-1 text-[10px] font-bold">
           <button onclick="filtrarRango('hoy')" id="btn-hoy" class="px-2 py-0.5 rounded-lg bg-emerald-600 text-white">Hoy</button>
           <button onclick="filtrarRango('semana')" id="btn-semana" class="px-2 py-0.5 rounded-lg bg-gray-200 text-gray-600">Semana</button>
@@ -137,7 +136,7 @@
       const nuevaMeta = parseFloat(input.value);
 
       if (isNaN(nuevaMeta) || nuevaMeta <= 0) {
-        alert('Ingresa una meta válida.');
+        alert('Ingresa una meta valida.');
         return;
       }
 
@@ -253,7 +252,7 @@
       });
 
       if (ordenadas.length === 0) {
-        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No hay ventas en este período.</p>';
+        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">No hay ventas en este periodo.</p>';
       }
 
       document.getElementById('ventas-hoy').textContent = `$${totalHoy.toFixed(2)}`;
