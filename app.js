@@ -50,11 +50,19 @@ async function cargarDatosGlobales() {
   }
 }
 
-// REGISTRAR VENTA
-async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
+// REGISTRAR VENTA CON DESCUENTO DE STOCK Y MÉTODO DE PAGO
+async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efectivo', descuento = 0) {
   if (!_supabase) {
     alert("Error: Supabase no está conectado.");
     return;
+  }
+
+  // Verificar Stock disponible
+  if (productoSeleccionado.stock !== null && productoSeleccionado.stock !== undefined) {
+    if (productoSeleccionado.stock < cantidad) {
+      alert(`Stock insuficiente. Solo quedan ${productoSeleccionado.stock} unidades de ${productoSeleccionado.nombre}.`);
+      return;
+    }
   }
 
   try {
@@ -67,7 +75,8 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
     const gananciaBruta = (precioUnitario - costoUnitario) * cantidad - descuento;
     const reinversion = costoUnitario * cantidad;
 
-    const { error } = await _supabase
+    // 1. Registrar venta
+    const { error: errVenta } = await _supabase
       .from('ventas')
       .insert([
         {
@@ -84,6 +93,7 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
           gananciaNeta: gananciaBruta,
           ganancia_neta: gananciaBruta,
           reinversion: reinversion,
+          metodo_pago: metodoPago,
           detalles_productos: [
             {
               id: productoSeleccionado.id,
@@ -97,7 +107,16 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
         }
       ]);
 
-    if (error) throw error;
+    if (errVenta) throw errVenta;
+
+    // 2. Descontar Stock del inventario
+    if (productoSeleccionado.stock !== null && productoSeleccionado.stock !== undefined) {
+      const nuevoStock = Math.max(0, productoSeleccionado.stock - cantidad);
+      await _supabase
+        .from('productos')
+        .update({ stock: nuevoStock })
+        .eq('id', productoSeleccionado.id);
+    }
 
     alert('¡Venta registrada con éxito!');
     await cargarDatosGlobales();
@@ -108,15 +127,17 @@ async function registrarVenta(productoSeleccionado, cantidad, descuento = 0) {
   }
 }
 
-// ELIMINAR VENTA
+// ELIMINAR VENTA Y RESTAURAR STOCK
 async function eliminarVenta(id) {
   if (!_supabase) {
     alert("Error: Supabase no está conectado.");
     return;
   }
 
-  if (confirm('¿Estás seguro de que deseas eliminar esta venta registrada?')) {
+  if (confirm('¿Estás seguro de que deseas eliminar esta venta registrada? El stock vendido será devuelto al inventario.')) {
     try {
+      const ventaAEliminar = (window.ventas || []).find(v => v.id === id);
+
       const { error } = await _supabase
         .from('ventas')
         .delete()
@@ -124,7 +145,19 @@ async function eliminarVenta(id) {
 
       if (error) throw error;
 
-      alert('Venta eliminada con éxito.');
+      // Devolver Stock
+      if (ventaAEliminar && ventaAEliminar.producto_id) {
+        const prod = (window.productos || []).find(p => p.id === ventaAEliminar.producto_id);
+        if (prod && prod.stock !== null && prod.stock !== undefined) {
+          const cantidadDevuelta = ventaAEliminar.cantidad || 1;
+          await _supabase
+            .from('productos')
+            .update({ stock: prod.stock + cantidadDevuelta })
+            .eq('id', prod.id);
+        }
+      }
+
+      alert('Venta eliminada y stock devuelto correctamente.');
       await cargarDatosGlobales();
 
       if (typeof renderHistorial === 'function') {
