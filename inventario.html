@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi POS - Productos</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SDK de Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -60,17 +61,30 @@
     </div>
   </main>
 
+  <!-- Script global de la aplicación -->
   <script src="app.js"></script>
+
   <script>
+    // Se definen los alias para evitar que dé error tanto si usas _supabase como si usas supabase
+    const clientSupabase = window._supabase || window.supabase;
+
     function renderProductos() {
       const lista = document.getElementById('lista-productos');
       if (!lista) return;
       lista.innerHTML = '';
 
-      productos.forEach(p => {
+      // Verifica que exista la variable global productos traída desde app.js
+      const listaProds = window.productos || [];
+
+      if (listaProds.length === 0) {
+        lista.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No hay productos registrados</p>';
+        return;
+      }
+
+      listaProds.forEach(p => {
         const item = document.createElement('div');
         item.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-xl border text-xs';
-        item.innerHTML = `<div><span class="font-bold">${p.nombre}</span> <span class="text-[10px] text-gray-400">(C: $${Number(p.costo).toFixed(2)} | V: $${Number(p.precio).toFixed(2)} | Stock: ${p.stock ?? 'N/A'})</span></div><button onclick="eliminarProducto(${p.id})" class="text-red-400 hover:text-red-600 text-xs px-1"><i class="fa-solid fa-trash"></i></button>`;
+        item.innerHTML = `<div><span class="font-bold">${p.nombre}</span> <span class="text-[10px] text-gray-400">(C: $${Number(p.costo || 0).toFixed(2)} | V: $${Number(p.precio || 0).toFixed(2)} | Stock: ${p.stock ?? 'N/A'})</span></div><button onclick="eliminarProducto(${p.id})" class="text-red-400 hover:text-red-600 text-xs px-1"><i class="fa-solid fa-trash"></i></button>`;
         lista.appendChild(item);
       });
     }
@@ -82,7 +96,15 @@
       const precio = parseFloat(document.getElementById('prod-precio').value);
       const stock = parseInt(document.getElementById('prod-stock').value) || 0;
 
-      const { error } = await _supabase.from('productos').insert([{ nombre, costo, precio, stock }]);
+      // Obtener referencia al cliente
+      const db = window._supabase || window.supabase;
+
+      if (!db) {
+        alert('Error: Supabase no está inicializado en app.js');
+        return;
+      }
+
+      const { error } = await db.from('productos').insert([{ nombre, costo, precio, stock }]);
 
       if (error) {
         alert('Error al guardar producto: ' + error.message);
@@ -90,19 +112,36 @@
       }
 
       e.target.reset();
-      await cargarDatosGlobales();
+      if (typeof cargarDatosGlobales === 'function') {
+        await cargarDatosGlobales();
+      }
+      renderProductos();
     }
 
     async function eliminarProducto(id) {
       if (confirm('¿Eliminar producto del catálogo?')) {
-        const { error } = await _supabase.from('productos').delete().eq('id', id);
+        const db = window._supabase || window.supabase;
+        const { error } = await db.from('productos').delete().eq('id', id);
+        
         if (error) {
           alert('Error al eliminar producto: ' + error.message);
           return;
         }
-        await cargarDatosGlobales();
+        
+        if (typeof cargarDatosGlobales === 'function') {
+          await cargarDatosGlobales();
+        }
+        renderProductos();
       }
     }
+
+    // Ejecutar renderizado al cargar la página
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof cargarDatosGlobales === 'function') {
+        await cargarDatosGlobales();
+      }
+      renderProductos();
+    });
   </script>
 </body>
 </html>
