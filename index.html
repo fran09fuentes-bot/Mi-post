@@ -23,18 +23,16 @@
   </header>
 
   <main class="p-4 max-w-lg mx-auto space-y-4">
-    <!-- Tarjetas de Métricas Principales (Cuadrícula de 4) -->
+    <!-- Cuadrícula de 4 Tarjetas -->
     <div class="grid grid-cols-2 gap-2.5">
-      <!-- 1. Ventas Hoy -->
       <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
         <span class="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
           <i class="fa-solid fa-dollar-sign"></i> Ventas Hoy
         </span>
         <h2 id="total-ventas-hoy" class="text-base font-extrabold text-slate-800">$0.00</h2>
-        <p class="text-[9px] text-gray-400">Ingreso del día</p>
+        <p class="text-[9px] text-gray-400">Ingreso del dia</p>
       </div>
 
-      <!-- 2. Ganancia Neta -->
       <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
         <span class="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1">
           <i class="fa-solid fa-chart-line"></i> Ganancia Neta
@@ -43,26 +41,24 @@
         <p class="text-[9px] text-gray-400">Utilidad real</p>
       </div>
 
-      <!-- 3. Capital Reinversión -->
       <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
         <span class="text-[10px] font-bold text-blue-600 uppercase flex items-center gap-1">
-          <i class="fa-solid fa-piggy-bank"></i> Reinversión
+          <i class="fa-solid fa-piggy-bank"></i> Reinversion
         </span>
         <h2 id="total-reinversion" class="text-base font-extrabold text-slate-800">$0.00</h2>
-        <p class="text-[9px] text-gray-400">Reposición stock</p>
+        <p class="text-[9px] text-gray-400">Reposicion stock</p>
       </div>
 
-      <!-- 4. Caja Efectivo -->
       <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
         <span class="text-[10px] font-bold text-amber-600 uppercase flex items-center gap-1">
           <i class="fa-solid fa-money-bill-wave"></i> Caja Efectivo
         </span>
         <h2 id="total-efectivo-caja" class="text-base font-extrabold text-slate-800">$0.00</h2>
-        <p class="text-[9px] text-gray-400">Efectivo físico</p>
+        <p class="text-[9px] text-gray-400">Efectivo fisico</p>
       </div>
     </div>
 
-    <!-- Resumen acumulado -->
+    <!-- Barra de resumen -->
     <div class="bg-slate-900 text-white p-3 rounded-2xl flex justify-around text-center text-xs shadow-inner">
       <div>
         <p class="text-[10px] text-gray-400">Ventas Acum.</p>
@@ -78,7 +74,7 @@
       </div>
     </div>
 
-    <!-- Navegación -->
+    <!-- Navegacion -->
     <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold">
       <a href="index.html" class="flex-1 text-center py-2 rounded-lg bg-white shadow text-slate-900 font-bold">
         <i class="fa-solid fa-cart-plus"></i> Vender
@@ -94,29 +90,26 @@
       </a>
     </nav>
 
-    <!-- Selección de Producto -->
+    <!-- Seleccion de Producto -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
       <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
         <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
       </h3>
 
-      <!-- Grid del Catálogo con alertas de stock -->
       <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1"></div>
 
-      <!-- Detalle y Método de Pago -->
       <div class="p-3 bg-gray-50 rounded-xl border space-y-2.5">
         <div class="flex justify-between items-center text-xs">
           <span class="text-gray-500">Seleccionado:</span>
           <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
         </div>
 
-        <!-- Selector de Método de Pago -->
         <div class="flex justify-between items-center text-xs pt-1 border-t">
-          <span class="text-gray-500 font-medium">Método de Pago:</span>
+          <span class="text-gray-500 font-medium">Metodo de Pago:</span>
           <select id="select-metodo-pago" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white">
-            <option value="Efectivo">💵 Efectivo</option>
-            <option value="Transferencia">🏦 Transferencia</option>
-            <option value="Tarjeta">💳 Tarjeta</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Tarjeta">Tarjeta</option>
           </select>
         </div>
 
@@ -165,7 +158,7 @@
         if (stock <= 0) {
           badgeStock = `<span class="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Agotado</span>`;
         } else if (stock <= 3) {
-          badgeStock = `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">¡Quedan ${stock}!</span>`;
+          badgeStock = `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Quedan ${stock}</span>`;
         }
         
         card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
@@ -205,7 +198,7 @@
         cantidadSeleccionada = nuevoValor;
         actualizarResumenSeleccion();
       } else if (nuevoValor > productoSeleccionado.stock) {
-        alert(`Alcanzaste el límite de stock disponible (${productoSeleccionado.stock} u.)`);
+        alert(`Stock limite alcanzado (${productoSeleccionado.stock} u.)`);
       }
     }
 
@@ -228,7 +221,7 @@
 
     async function confirmarVenta() {
       if (!productoSeleccionado) {
-        alert('Por favor selecciona un producto para realizar la venta.');
+        alert('Por favor selecciona un producto.');
         return;
       }
 
