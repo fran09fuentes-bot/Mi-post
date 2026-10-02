@@ -15,6 +15,7 @@ window.supabaseClient = _supabase;
 window.productos = [];
 window.ventas = [];
 window.gastos = [];
+window.cierres = [];
 
 // Función para cargar todos los datos globales desde Supabase
 async function cargarDatosGlobales() {
@@ -33,9 +34,23 @@ async function cargarDatosGlobales() {
     if (errGsts) console.error("Error al cargar gastos:", errGsts);
     else window.gastos = gsts || [];
 
+    const { data: crrs, error: errCrrs } = await _supabase.from('cierres').select('*');
+    if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
+    else window.cierres = crrs || [];
+
   } catch (err) {
     console.error("Error en cargarDatosGlobales:", err);
   }
+}
+
+// Función para filtrar productos localmente por nombre
+function buscarProductos(termino = '') {
+  if (!termino.trim()) return window.productos || [];
+  const query = termino.toLowerCase().trim();
+  return (window.productos || []).filter(p => 
+    (p.nombre && p.nombre.toLowerCase().includes(query)) ||
+    (p.producto && p.producto.toLowerCase().includes(query))
+  );
 }
 
 // Función global para registrar ventas
@@ -155,9 +170,41 @@ async function eliminarVenta(id) {
   }
 }
 
+// Función global para eliminar cierres de caja guardados
+async function eliminarCierre(id) {
+  if (!_supabase) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  if (confirm('¿Estás seguro de que deseas eliminar este registro de cierre de caja?')) {
+    try {
+      const { error } = await _supabase
+        .from('cierres')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      alert('Cierre de caja eliminado con éxito.');
+      await cargarDatosGlobales();
+
+      if (typeof renderCierres === 'function') {
+        renderCierres();
+      }
+    } catch (err) {
+      console.error('Error al eliminar cierre:', err);
+      alert('Error al eliminar cierre: ' + err.message);
+    }
+  }
+}
+
+// Registro global de funciones
 window.cargarDatosGlobales = cargarDatosGlobales;
+window.buscarProductos = buscarProductos;
 window.registrarVenta = registrarVenta;
 window.eliminarVenta = eliminarVenta;
+window.eliminarCierre = eliminarCierre;
 
 document.addEventListener('DOMContentLoaded', () => {
   cargarDatosGlobales();
