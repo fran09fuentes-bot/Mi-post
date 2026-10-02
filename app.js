@@ -170,6 +170,38 @@ async function eliminarVenta(id) {
   }
 }
 
+// Función global para registrar cierre de caja en Supabase
+async function registrarCierreCaja(efectivoBase, efectivoEsperado, efectivoContado) {
+  if (!_supabase) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  try {
+    const fechaHoy = new Date().toISOString().split('T')[0];
+
+    const { error } = await _supabase
+      .from('cierres')
+      .insert([
+        {
+          fecha: fechaHoy,
+          efectivo_base: efectivoBase,
+          efectivo_esperado: efectivoEsperado,
+          efectivo_contado: efectivoContado
+        }
+      ]);
+
+    if (error) throw error;
+
+    alert('¡Cierre de caja guardado con éxito!');
+    await cargarDatosGlobales();
+
+  } catch (err) {
+    console.error('Error al registrar cierre de caja:', err);
+    alert('Error al registrar cierre de caja: ' + err.message);
+  }
+}
+
 // Función global para eliminar cierres de caja guardados
 async function eliminarCierre(id) {
   if (!_supabase) {
@@ -204,6 +236,7 @@ window.cargarDatosGlobales = cargarDatosGlobales;
 window.buscarProductos = buscarProductos;
 window.registrarVenta = registrarVenta;
 window.eliminarVenta = eliminarVenta;
+window.registrarCierreCaja = registrarCierreCaja;
 window.eliminarCierre = eliminarCierre;
 
 document.addEventListener('DOMContentLoaded', () => {
