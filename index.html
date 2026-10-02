@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi POS Negocio</title>
 
-  <!-- Tailwind CSS & Bootstrap CSS / Icons -->
+  <!-- Tailwind CSS & Bootstrap Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -15,93 +15,103 @@
       background-color: #f3f4f6;
       font-family: system-ui, -apple-system, sans-serif;
     }
-    .top-bar {
-      background-color: #111827;
+    .top-header {
+      background-color: #0f172a;
       color: white;
     }
-    .nav-btn {
-      background-color: #e5e7eb;
-      color: #374151;
+    .nav-pill-btn {
+      background-color: #f1f5f9;
+      color: #334155;
       font-weight: 600;
-      border-radius: 0.5rem;
+      border-radius: 0.6rem;
       padding: 0.5rem 1.25rem;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
     }
-    .nav-btn.active {
-      background-color: #4f46e5;
+    .nav-pill-btn:hover {
+      background-color: #e2e8f0;
+    }
+    .nav-pill-btn.active {
+      background-color: #2563eb;
       color: white;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
     }
-    .card-custom {
+    .card-clean {
       background: white;
       border-radius: 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #e2e8f0;
     }
   </style>
 </head>
 <body>
 
-  <!-- Topbar Principal -->
-  <div class="top-bar py-3 px-4 d-flex justify-content-between align-items-center">
-    <div>
-      <h5 class="m-0 fw-bold"><i class="bi bi-shop me-2"></i>Mi POS Negocio</h5>
-      <small class="text-gray-400">Control de Ventas e Inventario</small>
+  <!-- Barra Superior de Título -->
+  <header class="top-header py-3 px-4 shadow-sm">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-shop fs-4 text-blue-400"></i>
+        <span class="fs-5 fw-bold tracking-tight">Mi POS Negocio</span>
+      </div>
+      <small class="text-gray-400">Historial de Transacciones</small>
     </div>
-  </div>
+  </header>
 
-  <!-- Navegación Centrada de Pestañas -->
-  <div class="container my-4 text-center">
-    <div class="d-inline-flex bg-white p-2 rounded-3 shadow-sm gap-2 flex-wrap justify-content-center" id="mainTabs">
-      <button class="nav-btn active" onclick="cambiarTab('vender', this)">
-        <i class="bi bi-cart me-1"></i>Vender
-      </button>
-      <button class="nav-btn" onclick="cambiarTab('productos', this)">
-        <i class="bi bi-box-seam me-1"></i>Productos
-      </button>
-      <button class="nav-btn" onclick="cambiarTab('gastos', this)">
-        <i class="bi bi-wallet2 me-1"></i>Gastos
-      </button>
-      <button class="nav-btn" onclick="cambiarTab('caja', this)">
-        <i class="bi bi-cash-stack me-1"></i>Caja
-      </button>
-      <button class="nav-btn" onclick="cambiarTab('historial', this)">
-        <i class="bi bi-journal-text me-1"></i>Historial
-      </button>
-    </div>
-  </div>
-
-  <!-- Contenedores de Sección -->
-  <div class="container pb-5" style="max-width: 900px;">
-
-    <!-- 1. VENDER (POS) -->
-    <div id="sec-vender" class="tab-seccion">
-      <div class="card-custom p-4 mb-4">
-        <h5 class="fw-bold mb-3"><i class="bi bi-search me-2"></i>Registrar Venta</h5>
-        <input type="text" id="buscar-producto" class="form-control form-control-lg mb-3" placeholder="Buscar por nombre de producto..." onkeyup="filtrarProductosUI()">
-        <div id="lista-busqueda" class="list-group">
-          <!-- Carga dinámicamente -->
-        </div>
+  <!-- Navegación de Pestañas Centradas -->
+  <div class="container my-4">
+    <div class="d-flex justify-content-center">
+      <div class="bg-white p-2 rounded-xl shadow-sm d-inline-flex gap-2 border flex-wrap justify-content-center">
+        <button class="nav-pill-btn active" onclick="cambiarTab('vender', this)">
+          <i class="bi bi-cart me-1"></i> Vender
+        </button>
+        <button class="nav-pill-btn" onclick="cambiarTab('productos', this)">
+          <i class="bi bi-box-seam me-1"></i> Productos
+        </button>
+        <button class="nav-pill-btn" onclick="cambiarTab('gastos', this)">
+          <i class="bi bi-wallet2 me-1"></i> Gastos
+        </button>
+        <button class="nav-pill-btn" onclick="cambiarTab('caja', this)">
+          <i class="bi bi-cash-stack me-1"></i> Caja
+        </button>
+        <button class="nav-pill-btn" onclick="cambiarTab('historial', this)">
+          <i class="bi bi-journal-text me-1"></i> Historial
+        </button>
       </div>
     </div>
+  </div>
 
-    <!-- 2. PRODUCTOS / INVENTARIO -->
-    <div id="sec-productos" class="tab-seccion d-none">
-      <div class="card-custom p-4">
+  <!-- Contenido de las Secciones -->
+  <main class="container pb-5" style="max-width: 800px;">
+
+    <!-- PESTAÑA 1: VENDER -->
+    <section id="sec-vender" class="tab-sec">
+      <div class="card-clean p-4 mb-4">
+        <h5 class="fw-bold mb-3 text-gray-800"><i class="bi bi-search me-2 text-primary"></i>Registrar Venta</h5>
+        <input type="text" id="buscar-producto" class="form-control form-control-lg border-gray-300 rounded-lg mb-3" placeholder="Buscar por nombre de producto..." onkeyup="filtrarProductosUI()">
+        <div id="lista-busqueda" class="list-group">
+          <!-- Productos buscados -->
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 2: PRODUCTOS -->
+    <section id="sec-productos" class="tab-sec d-none">
+      <div class="card-clean p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="fw-bold m-0"><i class="bi bi-boxes me-2"></i>Inventario de Productos</h5>
-          <button class="btn btn-primary fw-bold rounded-3" data-bs-toggle="modal" data-bs-target="#modalProducto">
-            <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
+          <h5 class="fw-bold m-0 text-gray-800"><i class="bi bi-boxes me-2 text-primary"></i>Inventario de Productos</h5>
+          <button class="btn btn-primary fw-semibold rounded-lg px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalProducto">
+            <i class="bi bi-plus-lg me-1"></i> Nuevo Producto
           </button>
         </div>
         <div class="table-responsive">
           <table class="table table-hover align-middle">
             <thead>
-              <tr class="text-secondary">
+              <tr class="text-secondary small text-uppercase">
                 <th>Producto</th>
                 <th>Precio</th>
                 <th>Costo</th>
                 <th>Stock</th>
-                <th>Acciones</th>
+                <th class="text-end">Acciones</th>
               </tr>
             </thead>
             <tbody id="tabla-productos">
@@ -110,149 +120,156 @@
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 3. GASTOS -->
-    <div id="sec-gastos" class="tab-seccion d-none">
-      <div class="card-custom p-4">
-        <h5 class="fw-bold mb-3"><i class="bi bi-journal-minus me-2"></i>Gastos del Negocio</h5>
+    <!-- PESTAÑA 3: GASTOS -->
+    <section id="sec-gastos" class="tab-sec d-none">
+      <div class="card-clean p-4">
+        <h5 class="fw-bold mb-3 text-gray-800"><i class="bi bi-journal-minus me-2 text-danger"></i>Registrar Gasto</h5>
         <div class="row g-2">
           <div class="col-md-6">
-            <input type="text" id="gasto-concepto" class="form-control" placeholder="Concepto">
+            <input type="text" id="gasto-concepto" class="form-control rounded-lg" placeholder="Concepto del gasto">
           </div>
           <div class="col-md-4">
-            <input type="number" id="gasto-monto" class="form-control" placeholder="Monto ($)" step="0.01">
+            <input type="number" id="gasto-monto" class="form-control rounded-lg" placeholder="Monto ($)" step="0.01">
           </div>
           <div class="col-md-2">
-            <button class="btn btn-danger w-100 fw-bold" onclick="guardarGastoUI()">Guardar</button>
+            <button class="btn btn-danger w-100 fw-semibold rounded-lg" onclick="guardarGastoUI()">Guardar</button>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 4. CAJA (Estructura mejorada) -->
-    <div id="sec-caja" class="tab-seccion d-none">
-      <!-- Estado y Fondo -->
-      <div class="card-custom p-4 mb-4">
+    <!-- PESTAÑA 4: CAJA -->
+    <section id="sec-caja" class="tab-sec d-none">
+      
+      <!-- Estado de Caja -->
+      <div class="card-clean p-4 mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="fw-bold m-0 text-dark"><i class="bi bi-cash-stack text-success me-2"></i>Estado de Caja de Hoy</h5>
-          <span class="badge bg-success fs-6 px-3 py-2">Caja Abierta</span>
+          <h5 class="fw-bold m-0 text-gray-800"><i class="bi bi-cash-stack text-emerald-600 me-2"></i>Estado de Caja de Hoy</h5>
+          <span class="badge bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-2 rounded-full fw-semibold">Caja Abierta</span>
         </div>
-        <div class="row align-items-center bg-light p-3 rounded-3 g-2">
+        <div class="row align-items-center bg-gray-50 p-3 rounded-xl border g-2">
           <div class="col-md-6">
-            <label class="form-label fw-semibold text-muted mb-1">Fondo Inicial de Cambio ($):</label>
-            <input type="number" id="caja-base-input" class="form-control form-control-lg fw-bold" value="10.00" step="0.50" min="0" oninput="calcularBalanceCaja()">
+            <label class="form-label fw-semibold text-gray-600 mb-1 small">Fondo Inicial de Cambio ($):</label>
+            <input type="number" id="caja-base-input" class="form-control form-control-lg fw-bold rounded-lg" value="10.00" step="0.50" min="0" oninput="calcularBalanceCaja()">
           </div>
           <div class="col-md-6 text-end">
-            <small class="text-muted d-block">Fecha de Turno</small>
-            <span id="caja-fecha-hoy" class="fw-bold fs-5 text-dark"></span>
+            <small class="text-gray-500 d-block">Fecha de Turno</small>
+            <span id="caja-fecha-hoy" class="fw-bold fs-5 text-gray-800"></span>
           </div>
         </div>
       </div>
 
-      <!-- Resumen de Efectivo -->
-      <div class="card-custom p-4 mb-4">
-        <h6 class="fw-bold text-uppercase text-muted mb-3" style="font-size: 0.85rem; letter-spacing: 1px;">Resumen de Flujo de Efectivo</h6>
-        <div class="d-flex justify-content-between py-2 border-bottom">
+      <!-- Balance -->
+      <div class="card-clean p-4 mb-4">
+        <h6 class="fw-bold text-uppercase text-gray-400 mb-3" style="font-size: 0.75rem; letter-spacing: 0.05em;">Resumen de Flujo de Efectivo</h6>
+        
+        <div class="d-flex justify-content-between py-2 border-b text-gray-700">
           <span>(+) Fondo Inicial:</span>
           <span id="bal-base" class="fw-bold">$10.00</span>
         </div>
-        <div class="d-flex justify-content-between py-2 border-bottom text-success">
+        <div class="d-flex justify-content-between py-2 border-b text-emerald-600">
           <span>(+) Ventas Cobradas en Efectivo:</span>
           <span id="bal-ventas-efectivo" class="fw-bold">$0.00</span>
         </div>
-        <div class="d-flex justify-content-between py-2 border-bottom text-danger">
+        <div class="d-flex justify-content-between py-2 border-b text-rose-600">
           <span>(-) Gastos Pagados en Efectivo:</span>
           <span id="bal-gastos-efectivo" class="fw-bold">$0.00</span>
         </div>
-        <div class="d-flex justify-content-between py-3 fs-5 fw-bold bg-light px-3 rounded-3 mt-2">
-          <span class="text-dark">(=) Efectivo Esperado en Caja:</span>
-          <span id="bal-efectivo-esperado" class="text-primary">$10.00</span>
+        <div class="d-flex justify-content-between py-3 fs-5 fw-bold bg-blue-50 px-3 rounded-xl mt-3 text-blue-900 border border-blue-100">
+          <span>(=) Efectivo Esperado en Caja:</span>
+          <span id="bal-efectivo-esperado">$10.00</span>
         </div>
 
-        <div class="bg-light p-3 rounded-3 mt-3 border">
-          <small class="fw-bold text-uppercase text-secondary d-block mb-2">Ventas Digitales / Banco (Informativo)</small>
-          <div class="d-flex justify-content-between text-muted small py-1">
+        <!-- Informativo Digitales -->
+        <div class="bg-gray-50 p-3 rounded-xl mt-3 border">
+          <small class="fw-bold text-uppercase text-gray-500 d-block mb-2" style="font-size: 0.7rem;">Ventas Digitales / Banco (Informativo)</small>
+          <div class="d-flex justify-content-between text-gray-600 small py-1">
             <span>(+) Transferencia / Chivo:</span>
-            <span id="bal-transferencias" class="fw-bold text-dark">$0.00</span>
+            <span id="bal-transferencias" class="fw-bold text-gray-800">$0.00</span>
           </div>
-          <div class="d-flex justify-content-between text-muted small py-1">
+          <div class="d-flex justify-content-between text-gray-600 small py-1">
             <span>(+) Tarjeta:</span>
-            <span id="bal-tarjeta" class="fw-bold text-dark">$0.00</span>
+            <span id="bal-tarjeta" class="fw-bold text-gray-800">$0.00</span>
           </div>
-          <div class="d-flex justify-content-between pt-2 mt-2 border-top fw-bold">
-            <span>Total General de Ventas:</span>
-            <span id="bal-total-general" class="text-dark">$0.00</span>
+          <div class="d-flex justify-content-between pt-2 mt-2 border-t fw-bold text-gray-800">
+            <span>Total General de Ventas (Efectivo + Digital):</span>
+            <span id="bal-total-general">$0.00</span>
           </div>
         </div>
       </div>
 
       <!-- Arqueo -->
-      <div class="card-custom p-4 mb-4">
-        <h5 class="fw-bold mb-3"><i class="bi bi-lock-fill text-dark me-2"></i>Efectuar Arqueo y Cierre</h5>
+      <div class="card-clean p-4 mb-4">
+        <h5 class="fw-bold mb-3 text-gray-800"><i class="bi bi-lock-fill text-gray-700 me-2"></i>Efectuar Arqueo y Cierre</h5>
         <div class="mb-3">
-          <label class="form-label fw-bold">Ingresa el Efectivo Físico Contado ($):</label>
-          <input type="number" id="caja-contado-input" class="form-control form-control-lg fw-bold" placeholder="0.00" step="0.01" oninput="actualizarDiferenciaCierre()">
+          <label class="form-label fw-semibold text-gray-700">Ingresa el Efectivo Físico Contado ($):</label>
+          <input type="number" id="caja-contado-input" class="form-control form-control-lg fw-bold rounded-lg" placeholder="0.00" step="0.01" oninput="actualizarDiferenciaCierre()">
         </div>
-        <div id="box-diferencia-cierre" class="alert alert-secondary d-flex justify-content-between align-items-center mb-3 py-2 px-3">
+
+        <div id="box-diferencia-cierre" class="alert alert-secondary d-flex justify-content-between align-items-center mb-3 py-2 px-3 rounded-lg">
           <span>Estado del Arqueo:</span>
           <span id="lbl-diferencia-cierre" class="fw-bold fs-6">Ingresa el monto contado</span>
         </div>
-        <button class="btn btn-dark btn-lg w-100 fw-bold py-3" onclick="confirmarYCerrarCajaUI()">
+
+        <button class="btn btn-dark btn-lg w-100 fw-bold py-3 rounded-xl shadow-sm" onclick="confirmarYCerrarCajaUI()">
           <i class="bi bi-inbox-fill me-2"></i>Guardar y Cerrar Caja de Hoy
         </button>
       </div>
 
-      <!-- Cierres -->
-      <div class="card-custom p-4">
-        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-clock-history me-2"></i>Cierres Guardados</h6>
-        <div id="lista-cierres-guardados" class="d-flex flex-column gap-2"></div>
+      <!-- Cierres Guardados -->
+      <div class="card-clean p-4">
+        <h6 class="fw-bold text-gray-500 mb-3"><i class="bi bi-clock-history me-2"></i>Cierres Guardados</h6>
+        <div id="lista-cierres-guardados" class="d-flex flex-column gap-2">
+          <!-- Renderizado dinámico -->
+        </div>
       </div>
-    </div>
 
-    <!-- 5. HISTORIAL (Dashboard Original) -->
-    <div id="sec-historial" class="tab-seccion d-none">
+    </section>
+
+    <!-- PESTAÑA 5: HISTORIAL -->
+    <section id="sec-historial" class="tab-sec d-none">
       <div class="row g-3 mb-4">
         <div class="col-md-6">
-          <div class="card-custom p-4 text-center">
-            <small class="text-uppercase fw-bold text-success"><i class="bi bi-calendar-event me-1"></i>Ventas Hoy</small>
-            <h2 id="hist-ventas-hoy" class="fw-bold text-dark my-1">$0.00</h2>
-            <small id="hist-cant-hoy" class="text-muted">0 ventas</small>
+          <div class="card-clean p-4 text-center">
+            <small class="text-uppercase fw-bold text-emerald-600"><i class="bi bi-calendar-event me-1"></i>Ventas Hoy</small>
+            <h2 id="hist-ventas-hoy" class="fw-bold text-gray-800 my-1">$0.00</h2>
+            <small id="hist-cant-hoy" class="text-gray-500">0 ventas</small>
           </div>
         </div>
         <div class="col-md-6">
-          <div class="card-custom p-4 text-center">
-            <small class="text-uppercase fw-bold text-primary"><i class="bi bi-calendar-month me-1"></i>Ventas Mes</small>
-            <h2 id="hist-ventas-mes" class="fw-bold text-dark my-1">$0.00</h2>
-            <small id="hist-cant-mes" class="text-muted">0 ventas</small>
+          <div class="card-clean p-4 text-center">
+            <small class="text-uppercase fw-bold text-blue-600"><i class="bi bi-calendar-month me-1"></i>Ventas Mes</small>
+            <h2 id="hist-ventas-mes" class="fw-bold text-gray-800 my-1">$0.00</h2>
+            <small id="hist-cant-mes" class="text-gray-500">0 ventas</small>
           </div>
         </div>
       </div>
 
-      <!-- Últimas ventas -->
-      <div class="card-custom p-4">
-        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-clock-history me-2"></i>Últimas Ventas</h6>
+      <div class="card-clean p-4">
+        <h6 class="fw-bold text-gray-600 mb-3"><i class="bi bi-clock-history me-2"></i>Últimas Ventas</h6>
         <div id="lista-ultimas-ventas" class="d-flex flex-column gap-2">
-          <!-- Carga ventas desde Supabase -->
+          <!-- Carga dinámicamente -->
         </div>
       </div>
-    </div>
+    </section>
 
-  </div>
+  </main>
 
-  <!-- Scripts Libs -->
+  <!-- Librerías JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 
-  <!-- Lógica para conmutar las pestañas correctamente -->
+  <!-- Conmutación limpia de pestañas -->
   <script>
     function cambiarTab(nombreSec, btn) {
-      document.querySelectorAll('.tab-seccion').forEach(el => el.classList.add('d-none'));
-      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-sec').forEach(el => el.classList.add('d-none'));
+      document.querySelectorAll('.nav-pill-btn').forEach(el => el.classList.remove('active'));
 
-      const target = document.getElementById(`sec-${nombreSec}`);
-      if (target) target.classList.remove('d-none');
+      const secTarget = document.getElementById(`sec-${nombreSec}`);
+      if (secTarget) secTarget.classList.remove('d-none');
       if (btn) btn.classList.add('active');
 
       if (nombreSec === 'caja' && typeof calcularBalanceCaja === 'function') {
