@@ -100,7 +100,7 @@
           <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
         </h3>
 
-        <!-- BUSCADOR DE PRODUCTOS AGREGADO -->
+        <!-- Buscador de productos -->
         <div class="relative w-full sm:w-48">
           <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
           <input 
@@ -129,6 +129,20 @@
             <option value="Transferencia">Transferencia</option>
             <option value="Tarjeta">Tarjeta</option>
           </select>
+        </div>
+
+        <!-- Campo para Descuento -->
+        <div class="flex justify-between items-center text-xs pt-1 border-t">
+          <span class="text-gray-500 font-medium">Descuento ($):</span>
+          <input 
+            type="number" 
+            id="input-descuento" 
+            placeholder="0.00" 
+            min="0" 
+            step="0.01"
+            oninput="actualizarResumenSeleccion()"
+            class="w-20 text-right border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white focus:border-emerald-500"
+          />
         </div>
 
         <div class="flex justify-between items-center pt-2 border-t">
@@ -162,7 +176,6 @@
 
       let lista = window.productos || [];
 
-      // FILTRADO DE PRODUCTOS EN TIEMPO REAL
       const inputBusqueda = document.getElementById('input-buscar-producto');
       const termino = inputBusqueda ? inputBusqueda.value.trim().toLowerCase() : '';
 
@@ -215,6 +228,8 @@
     function seleccionarProducto(p) {
       productoSeleccionado = p;
       cantidadSeleccionada = 1;
+      const inputDesc = document.getElementById('input-descuento');
+      if (inputDesc) inputDesc.value = '';
       actualizarResumenSeleccion();
       renderGridProductos();
     }
@@ -234,11 +249,15 @@
       const lblNombre = document.getElementById('label-producto-nombre');
       const lblCant = document.getElementById('label-cantidad');
       const lblTotal = document.getElementById('label-total');
+      const inputDesc = document.getElementById('input-descuento');
+
+      const descuentoVal = inputDesc ? Math.max(0, Number(inputDesc.value) || 0) : 0;
 
       if (productoSeleccionado) {
         lblNombre.textContent = productoSeleccionado.nombre;
         lblCant.textContent = cantidadSeleccionada;
-        const total = (Number(productoSeleccionado.precio) || 0) * cantidadSeleccionada;
+        const subtotal = (Number(productoSeleccionado.precio) || 0) * cantidadSeleccionada;
+        const total = Math.max(0, subtotal - descuentoVal);
         lblTotal.textContent = `$${total.toFixed(2)}`;
       } else {
         lblNombre.textContent = 'Ninguno';
@@ -254,11 +273,14 @@
       }
 
       const metodoPago = document.getElementById('select-metodo-pago').value;
+      const inputDesc = document.getElementById('input-descuento');
+      const descuento = inputDesc ? Math.max(0, Number(inputDesc.value) || 0) : 0;
 
       if (typeof registrarVenta === 'function') {
-        await registrarVenta(productoSeleccionado, cantidadSeleccionada, metodoPago);
+        await registrarVenta(productoSeleccionado, cantidadSeleccionada, metodoPago, descuento);
         productoSeleccionado = null;
         cantidadSeleccionada = 1;
+        if (inputDesc) inputDesc.value = '';
         actualizarResumenSeleccion();
         renderGridProductos();
         actualizarMetricasUI();
