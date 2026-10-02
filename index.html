@@ -3,267 +3,269 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Inventario y Ventas</title>
+  <title>Mi POS Negocio</title>
 
-  <!-- Bootstrap 5 CSS -->
+  <!-- Tailwind CSS & Bootstrap CSS / Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
   <style>
     body {
-      background-color: #f8f9fa;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f3f4f6;
+      font-family: system-ui, -apple-system, sans-serif;
     }
-    .nav-pills .nav-link {
-      color: #495057;
+    .top-bar {
+      background-color: #111827;
+      color: white;
+    }
+    .nav-btn {
+      background-color: #e5e7eb;
+      color: #374151;
       font-weight: 600;
       border-radius: 0.5rem;
+      padding: 0.5rem 1.25rem;
+      transition: all 0.2s;
     }
-    .nav-pills .nav-link.active {
-      background-color: #0d6efd;
-      color: #fff;
+    .nav-btn.active {
+      background-color: #4f46e5;
+      color: white;
     }
-    .card {
-      border: none;
+    .card-custom {
+      background: white;
       border-radius: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: none;
     }
   </style>
 </head>
 <body>
 
-  <!-- Barra Superior de Navegación / Pestañas -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="#"><i class="bi bi-shop me-2"></i>Mi POS / Caja</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="nav nav-pills ms-auto" id="mainTab" role="tablist">
-          <li class="nav-item">
-            <button class="nav-link active text-white me-2" id="ventas-tab" data-bs-toggle="tab" data-bs-target="#tab-ventas" type="button">
-              <i class="bi bi-cart-check me-1"></i>Ventas
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link text-white me-2" id="productos-tab" data-bs-toggle="tab" data-bs-target="#tab-productos" type="button">
-              <i class="bi bi-box-seam me-1"></i>Inventario
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link text-white me-2" id="gastos-tab" data-bs-toggle="tab" data-bs-target="#tab-gastos" type="button">
-              <i class="bi bi-receipt me-1"></i>Gastos
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link text-white" id="caja-tab" data-bs-toggle="tab" data-bs-target="#tab-caja" type="button" onclick="calcularBalanceCaja()">
-              <i class="bi bi-cash-register me-1"></i>Caja
-            </button>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Contenido Principal -->
-  <div class="container pb-5">
-    <div class="tab-content" id="mainTabContent">
-
-      <!-- ========================================== -->
-      <!-- PESTAÑA 1: VENTAS (POS)                    -->
-      <!-- ========================================== -->
-      <div class="tab-pane fade show active" id="tab-ventas" role="tabpanel">
-        <div class="row g-4">
-          <div class="col-md-7">
-            <div class="card p-4 shadow-sm">
-              <h5 class="fw-bold mb-3"><i class="bi bi-search me-2"></i>Buscar y Registrar Venta</h5>
-              <div class="mb-3">
-                <input type="text" id="input-buscar-prod" class="form-control form-control-lg" placeholder="Buscar producto..." onkeyup="filtrarProductosUI()">
-              </div>
-              <div id="lista-busqueda-productos" class="list-group mb-3" style="max-height: 250px; overflow-y: auto;">
-                <!-- Se cargan productos dinámicamente -->
-              </div>
-            </div>
-          </div>
-          <div class="col-md-5">
-            <div class="card p-4 shadow-sm">
-              <h5 class="fw-bold mb-3"><i class="bi bi-receipt-cutoff me-2"></i>Detalle de la Venta</h5>
-              <div id="resumen-venta" class="mb-3">
-                <p class="text-muted">Selecciona un producto de la lista para vender.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- PESTAÑA 2: PRODUCTOS / INVENTARIO          -->
-      <!-- ========================================== -->
-      <div class="tab-pane fade" id="tab-productos" role="tabpanel">
-        <div class="card p-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold m-0"><i class="bi bi-boxes me-2"></i>Inventario de Productos</h5>
-            <button class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#modalProducto">
-              <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
-            </button>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Producto</th>
-                  <th>Precio</th>
-                  <th>Costo</th>
-                  <th>Stock</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="tabla-productos-body">
-                <!-- Se carga con JS -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- PESTAÑA 3: GASTOS                          -->
-      <!-- ========================================== -->
-      <div class="tab-pane fade" id="tab-gastos" role="tabpanel">
-        <div class="card p-4 shadow-sm">
-          <h5 class="fw-bold mb-3"><i class="bi bi-journal-minus me-2"></i>Registro de Gastos</h5>
-          <div class="row g-2 mb-3">
-            <div class="col-md-5">
-              <input type="text" id="gasto-concepto" class="form-control" placeholder="Concepto del gasto">
-            </div>
-            <div class="col-md-4">
-              <input type="number" id="gasto-monto" class="form-control" placeholder="Monto ($)" step="0.01">
-            </div>
-            <div class="col-md-3">
-              <button class="btn btn-danger w-100 fw-bold" onclick="registrarGastoUI()">Registrar Gasto</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========================================== -->
-      <!-- PESTAÑA 4: CAJA (DISEÑO COMPLETO ACTUALIZADO)-->
-      <!-- ========================================== -->
-      <div class="tab-pane fade" id="tab-caja" role="tabpanel">
-        
-        <!-- 1. Estado de la Caja y Fondo Inicial -->
-        <div class="card p-4 mb-4 shadow-sm border-0 rounded-4">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold m-0">
-              <i class="bi bi-cash-stack text-success me-2"></i>Estado de Caja de Hoy
-            </h5>
-            <span id="caja-estado-badge" class="badge bg-success fs-6 px-3 py-2">Caja Abierta</span>
-          </div>
-
-          <div class="row align-items-center bg-light p-3 rounded-3 g-2">
-            <div class="col-md-6">
-              <label class="form-label fw-semibold text-muted mb-1">Fondo Inicial de Cambio ($):</label>
-              <input type="number" id="caja-base-input" class="form-control form-control-lg fw-bold" value="10.00" step="0.50" min="0" oninput="calcularBalanceCaja()">
-            </div>
-            <div class="col-md-6 text-end">
-              <small class="text-muted d-block">Fecha de Turno</small>
-              <span id="caja-fecha-hoy" class="fw-bold fs-5 text-dark"></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2. Balance del Día -->
-        <div class="card p-4 mb-4 shadow-sm border-0 rounded-4">
-          <h6 class="fw-bold text-uppercase text-muted mb-3" style="font-size: 0.85rem; letter-spacing: 1px;">
-            Resumen de Flujo de Efectivo
-          </h6>
-
-          <div class="d-flex justify-content-between py-2 border-bottom">
-            <span>(+) Fondo Inicial:</span>
-            <span id="bal-base" class="fw-bold">$10.00</span>
-          </div>
-          <div class="d-flex justify-content-between py-2 border-bottom text-success">
-            <span>(+) Ventas Cobradas en Efectivo:</span>
-            <span id="bal-ventas-efectivo" class="fw-bold">$0.00</span>
-          </div>
-          <div class="d-flex justify-content-between py-2 border-bottom text-danger">
-            <span>(-) Gastos Pagados en Efectivo:</span>
-            <span id="bal-gastos-efectivo" class="fw-bold">$0.00</span>
-          </div>
-          <div class="d-flex justify-content-between py-3 fs-5 fw-bold bg-light px-3 rounded-3 mt-2">
-            <span class="text-dark">(=) Efectivo Esperado en Caja:</span>
-            <span id="bal-efectivo-esperado" class="text-primary">$10.00</span>
-          </div>
-
-          <!-- Informativo Digitales -->
-          <div class="bg-light p-3 rounded-3 mt-3 border">
-            <small class="fw-bold text-uppercase text-secondary d-block mb-2">Ventas Digitales / Banco (Informativo)</small>
-            <div class="d-flex justify-content-between text-muted small py-1">
-              <span>(+) Transferencia / Chivo:</span>
-              <span id="bal-transferencias" class="fw-bold text-dark">$0.00</span>
-            </div>
-            <div class="d-flex justify-content-between text-muted small py-1">
-              <span>(+) Tarjeta:</span>
-              <span id="bal-tarjeta" class="fw-bold text-dark">$0.00</span>
-            </div>
-            <div class="d-flex justify-content-between pt-2 mt-2 border-top fw-bold">
-              <span>Total General de Ventas (Efectivo + Digital):</span>
-              <span id="bal-total-general" class="text-dark">$0.00</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3. Arqueo y Cierre -->
-        <div class="card p-4 mb-4 shadow-sm border-0 rounded-4">
-          <h5 class="fw-bold mb-3"><i class="bi bi-lock-fill text-dark me-2"></i>Efectuar Arqueo y Cierre</h5>
-
-          <div class="mb-3">
-            <label class="form-label fw-bold">Ingresa el Efectivo Físico Contado ($):</label>
-            <input type="number" id="caja-contado-input" class="form-control form-control-lg fw-bold border-2" placeholder="0.00" step="0.01" oninput="actualizarDiferenciaCierre()">
-          </div>
-
-          <!-- Indicador Dinámico de Cuadre / Diferencia -->
-          <div id="box-diferencia-cierre" class="alert alert-secondary d-flex justify-content-between align-items-center mb-3 py-2 px-3">
-            <span>Estado del Arqueo:</span>
-            <span id="lbl-diferencia-cierre" class="fw-bold fs-6">Ingresa el monto contado</span>
-          </div>
-
-          <button id="btn-cerrar-caja" class="btn btn-dark btn-lg w-100 fw-bold py-3" onclick="confirmarYCerrarCajaUI()">
-            <i class="bi bi-inbox-fill me-2"></i>Guardar y Cerrar Caja de Hoy
-          </button>
-        </div>
-
-        <!-- 4. Historial de Cierres Guardados -->
-        <div class="card p-4 shadow-sm border-0 rounded-4">
-          <h6 class="fw-bold text-muted mb-3"><i class="bi bi-clock-history me-2"></i>Cierres Guardados</h6>
-          <div id="lista-cierres-guardados" class="d-flex flex-column gap-2">
-            <!-- Se cargan dinámicamente -->
-          </div>
-        </div>
-
-      </div>
-
+  <!-- Topbar Principal -->
+  <div class="top-bar py-3 px-4 d-flex justify-content-between align-items-center">
+    <div>
+      <h5 class="m-0 fw-bold"><i class="bi bi-shop me-2"></i>Mi POS Negocio</h5>
+      <small class="text-gray-400">Control de Ventas e Inventario</small>
     </div>
   </div>
 
-  <!-- JS de Bootstrap -->
+  <!-- Navegación Centrada de Pestañas -->
+  <div class="container my-4 text-center">
+    <div class="d-inline-flex bg-white p-2 rounded-3 shadow-sm gap-2 flex-wrap justify-content-center" id="mainTabs">
+      <button class="nav-btn active" onclick="cambiarTab('vender', this)">
+        <i class="bi bi-cart me-1"></i>Vender
+      </button>
+      <button class="nav-btn" onclick="cambiarTab('productos', this)">
+        <i class="bi bi-box-seam me-1"></i>Productos
+      </button>
+      <button class="nav-btn" onclick="cambiarTab('gastos', this)">
+        <i class="bi bi-wallet2 me-1"></i>Gastos
+      </button>
+      <button class="nav-btn" onclick="cambiarTab('caja', this)">
+        <i class="bi bi-cash-stack me-1"></i>Caja
+      </button>
+      <button class="nav-btn" onclick="cambiarTab('historial', this)">
+        <i class="bi bi-journal-text me-1"></i>Historial
+      </button>
+    </div>
+  </div>
+
+  <!-- Contenedores de Sección -->
+  <div class="container pb-5" style="max-width: 900px;">
+
+    <!-- 1. VENDER (POS) -->
+    <div id="sec-vender" class="tab-seccion">
+      <div class="card-custom p-4 mb-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-search me-2"></i>Registrar Venta</h5>
+        <input type="text" id="buscar-producto" class="form-control form-control-lg mb-3" placeholder="Buscar por nombre de producto..." onkeyup="filtrarProductosUI()">
+        <div id="lista-busqueda" class="list-group">
+          <!-- Carga dinámicamente -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PRODUCTOS / INVENTARIO -->
+    <div id="sec-productos" class="tab-seccion d-none">
+      <div class="card-custom p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold m-0"><i class="bi bi-boxes me-2"></i>Inventario de Productos</h5>
+          <button class="btn btn-primary fw-bold rounded-3" data-bs-toggle="modal" data-bs-target="#modalProducto">
+            <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr class="text-secondary">
+                <th>Producto</th>
+                <th>Precio</th>
+                <th>Costo</th>
+                <th>Stock</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-productos">
+              <!-- Carga dinámicamente desde Supabase -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. GASTOS -->
+    <div id="sec-gastos" class="tab-seccion d-none">
+      <div class="card-custom p-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-journal-minus me-2"></i>Gastos del Negocio</h5>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <input type="text" id="gasto-concepto" class="form-control" placeholder="Concepto">
+          </div>
+          <div class="col-md-4">
+            <input type="number" id="gasto-monto" class="form-control" placeholder="Monto ($)" step="0.01">
+          </div>
+          <div class="col-md-2">
+            <button class="btn btn-danger w-100 fw-bold" onclick="guardarGastoUI()">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. CAJA (Estructura mejorada) -->
+    <div id="sec-caja" class="tab-seccion d-none">
+      <!-- Estado y Fondo -->
+      <div class="card-custom p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="fw-bold m-0 text-dark"><i class="bi bi-cash-stack text-success me-2"></i>Estado de Caja de Hoy</h5>
+          <span class="badge bg-success fs-6 px-3 py-2">Caja Abierta</span>
+        </div>
+        <div class="row align-items-center bg-light p-3 rounded-3 g-2">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted mb-1">Fondo Inicial de Cambio ($):</label>
+            <input type="number" id="caja-base-input" class="form-control form-control-lg fw-bold" value="10.00" step="0.50" min="0" oninput="calcularBalanceCaja()">
+          </div>
+          <div class="col-md-6 text-end">
+            <small class="text-muted d-block">Fecha de Turno</small>
+            <span id="caja-fecha-hoy" class="fw-bold fs-5 text-dark"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen de Efectivo -->
+      <div class="card-custom p-4 mb-4">
+        <h6 class="fw-bold text-uppercase text-muted mb-3" style="font-size: 0.85rem; letter-spacing: 1px;">Resumen de Flujo de Efectivo</h6>
+        <div class="d-flex justify-content-between py-2 border-bottom">
+          <span>(+) Fondo Inicial:</span>
+          <span id="bal-base" class="fw-bold">$10.00</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom text-success">
+          <span>(+) Ventas Cobradas en Efectivo:</span>
+          <span id="bal-ventas-efectivo" class="fw-bold">$0.00</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom text-danger">
+          <span>(-) Gastos Pagados en Efectivo:</span>
+          <span id="bal-gastos-efectivo" class="fw-bold">$0.00</span>
+        </div>
+        <div class="d-flex justify-content-between py-3 fs-5 fw-bold bg-light px-3 rounded-3 mt-2">
+          <span class="text-dark">(=) Efectivo Esperado en Caja:</span>
+          <span id="bal-efectivo-esperado" class="text-primary">$10.00</span>
+        </div>
+
+        <div class="bg-light p-3 rounded-3 mt-3 border">
+          <small class="fw-bold text-uppercase text-secondary d-block mb-2">Ventas Digitales / Banco (Informativo)</small>
+          <div class="d-flex justify-content-between text-muted small py-1">
+            <span>(+) Transferencia / Chivo:</span>
+            <span id="bal-transferencias" class="fw-bold text-dark">$0.00</span>
+          </div>
+          <div class="d-flex justify-content-between text-muted small py-1">
+            <span>(+) Tarjeta:</span>
+            <span id="bal-tarjeta" class="fw-bold text-dark">$0.00</span>
+          </div>
+          <div class="d-flex justify-content-between pt-2 mt-2 border-top fw-bold">
+            <span>Total General de Ventas:</span>
+            <span id="bal-total-general" class="text-dark">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arqueo -->
+      <div class="card-custom p-4 mb-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-lock-fill text-dark me-2"></i>Efectuar Arqueo y Cierre</h5>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Ingresa el Efectivo Físico Contado ($):</label>
+          <input type="number" id="caja-contado-input" class="form-control form-control-lg fw-bold" placeholder="0.00" step="0.01" oninput="actualizarDiferenciaCierre()">
+        </div>
+        <div id="box-diferencia-cierre" class="alert alert-secondary d-flex justify-content-between align-items-center mb-3 py-2 px-3">
+          <span>Estado del Arqueo:</span>
+          <span id="lbl-diferencia-cierre" class="fw-bold fs-6">Ingresa el monto contado</span>
+        </div>
+        <button class="btn btn-dark btn-lg w-100 fw-bold py-3" onclick="confirmarYCerrarCajaUI()">
+          <i class="bi bi-inbox-fill me-2"></i>Guardar y Cerrar Caja de Hoy
+        </button>
+      </div>
+
+      <!-- Cierres -->
+      <div class="card-custom p-4">
+        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-clock-history me-2"></i>Cierres Guardados</h6>
+        <div id="lista-cierres-guardados" class="d-flex flex-column gap-2"></div>
+      </div>
+    </div>
+
+    <!-- 5. HISTORIAL (Dashboard Original) -->
+    <div id="sec-historial" class="tab-seccion d-none">
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <div class="card-custom p-4 text-center">
+            <small class="text-uppercase fw-bold text-success"><i class="bi bi-calendar-event me-1"></i>Ventas Hoy</small>
+            <h2 id="hist-ventas-hoy" class="fw-bold text-dark my-1">$0.00</h2>
+            <small id="hist-cant-hoy" class="text-muted">0 ventas</small>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card-custom p-4 text-center">
+            <small class="text-uppercase fw-bold text-primary"><i class="bi bi-calendar-month me-1"></i>Ventas Mes</small>
+            <h2 id="hist-ventas-mes" class="fw-bold text-dark my-1">$0.00</h2>
+            <small id="hist-cant-mes" class="text-muted">0 ventas</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Últimas ventas -->
+      <div class="card-custom p-4">
+        <h6 class="fw-bold text-muted mb-3"><i class="bi bi-clock-history me-2"></i>Últimas Ventas</h6>
+        <div id="lista-ultimas-ventas" class="d-flex flex-column gap-2">
+          <!-- Carga ventas desde Supabase -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Scripts Libs -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- JS de Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <!-- Tu archivo de Script JavaScript principal -->
   <script src="app.js"></script>
 
+  <!-- Lógica para conmutar las pestañas correctamente -->
   <script>
-    // Conector sencillo para el botón de cierre en HTML hacia tu JS
+    function cambiarTab(nombreSec, btn) {
+      document.querySelectorAll('.tab-seccion').forEach(el => el.classList.add('d-none'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+      const target = document.getElementById(`sec-${nombreSec}`);
+      if (target) target.classList.remove('d-none');
+      if (btn) btn.classList.add('active');
+
+      if (nombreSec === 'caja' && typeof calcularBalanceCaja === 'function') {
+        calcularBalanceCaja();
+      }
+    }
+
     async function confirmarYCerrarCajaUI() {
       const inputContado = document.getElementById('caja-contado-input');
       if (!inputContado || !inputContado.value) {
         alert('Por favor, ingresa el efectivo físico contado.');
         return;
       }
-
       const base = parseFloat(document.getElementById('caja-base-input').value) || 0;
       const esperado = parseFloat(document.getElementById('bal-efectivo-esperado').innerText.replace('$', '')) || 0;
       const contado = parseFloat(inputContado.value) || 0;
