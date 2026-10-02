@@ -18,7 +18,7 @@
       <h1 class="font-bold text-lg flex items-center gap-2">
         <i class="fa-solid fa-boxes-stacked text-emerald-400"></i> Mi POS Negocio
       </h1>
-      <p class="text-xs text-gray-400">Punto de Venta</p>
+      <p class="text-xs text-gray-400">Arqueo y Cierre Diarios de Caja</p>
     </div>
   </header>
 
@@ -83,8 +83,8 @@
           <span id="lbl-efectivo-esperado" class="text-amber-600">$0.00</span>
         </div>
 
-        <!-- MÉTODOS DE PAGO ADICIONALES (TRANSFERENCIA Y TARJETA) -->
-        <div class="mt-4 pt-3 border-t border-dashed space-y-1.5 bg-slate-50 p-2.5 rounded-xl">
+        <!-- VENTAS DIGITALES (INFORMATIVO) -->
+        <div class="mt-3 pt-2.5 border-t border-dashed space-y-1.5 bg-slate-50 p-2.5 rounded-xl">
           <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
             <i class="fa-solid fa-credit-card"></i> Ventas Digitales Hoy (Informativo)
           </p>
@@ -106,10 +106,49 @@
         </div>
       </div>
     </div>
+
+    <!-- EFECTUAR ARQUEO Y CIERRE -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5 border-b pb-2">
+        <i class="fa-solid fa-lock text-slate-700"></i> Efectuar Arqueo y Cierre
+      </h3>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold text-gray-600">Ingresa el Efectivo Físico Contado ($):</label>
+        <input 
+          type="number" 
+          id="input-efectivo-fisico" 
+          placeholder="0.00" 
+          step="0.01" 
+          min="0"
+          oninput="validarArqueo()"
+          class="w-full border p-2.5 rounded-xl text-base font-bold text-slate-900 outline-none focus:border-emerald-500 bg-gray-50"
+        />
+      </div>
+
+      <div id="box-resultado-arqueo" class="hidden p-3 rounded-xl text-xs font-bold text-center"></div>
+
+      <button onclick="guardarCierreCaja()" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-2">
+        <i class="fa-solid fa-cash-register"></i> Guardar y Cerrar Caja de Hoy
+      </button>
+    </div>
+
+    <!-- CIERRES GUARDADOS -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5 border-b pb-2">
+        <i class="fa-solid fa-rotate-left text-indigo-500"></i> Cierres Guardados
+      </h3>
+
+      <div id="lista-cierres" class="space-y-2">
+        <p class="text-xs text-gray-400 text-center py-2">No hay cierres registrados.</p>
+      </div>
+    </div>
   </main>
 
   <script src="app.js"></script>
   <script>
+    let efectivoEsperadoGlobal = 0;
+
     function calcularCaja() {
       const vts = window.ventas || [];
       const gsts = window.gastos || [];
@@ -148,17 +187,112 @@
         }
       });
 
-      const efectivoEsperado = base + ventasEfectivo - gastosEfectivo;
+      efectivoEsperadoGlobal = base + ventasEfectivo - gastosEfectivo;
       const totalGeneralDia = ventasEfectivo + ventasTransferencia + ventasTarjeta;
 
       document.getElementById('lbl-fondo-inicial').textContent = `$${base.toFixed(2)}`;
       document.getElementById('lbl-ventas-efectivo').textContent = `$${ventasEfectivo.toFixed(2)}`;
       document.getElementById('lbl-gastos-efectivo').textContent = `$${gastosEfectivo.toFixed(2)}`;
-      document.getElementById('lbl-efectivo-esperado').textContent = `$${efectivoEsperado.toFixed(2)}`;
+      document.getElementById('lbl-efectivo-esperado').textContent = `$${efectivoEsperadoGlobal.toFixed(2)}`;
 
       document.getElementById('lbl-ventas-transferencia').textContent = `$${ventasTransferencia.toFixed(2)}`;
       document.getElementById('lbl-ventas-tarjeta').textContent = `$${ventasTarjeta.toFixed(2)}`;
       document.getElementById('lbl-total-ventas-dia').textContent = `$${totalGeneralDia.toFixed(2)}`;
+
+      validarArqueo();
+    }
+
+    function validarArqueo() {
+      const inputFisico = document.getElementById('input-efectivo-fisico');
+      const box = document.getElementById('box-resultado-arqueo');
+
+      if (!inputFisico || !box) return;
+
+      const valorTexto = inputFisico.value.trim();
+      if (valorTexto === '') {
+        box.className = 'hidden';
+        return;
+      }
+
+      const contado = Number(valorTexto) || 0;
+      const diferencia = contado - efectivoEsperadoGlobal;
+
+      box.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'bg-red-50', 'text-red-700', 'bg-amber-50', 'text-amber-700');
+
+      if (Math.abs(diferencia) < 0.001) {
+        box.className = 'p-3 rounded-xl text-xs font-bold text-center bg-emerald-50 text-emerald-700 border border-emerald-200';
+        box.innerHTML = `<i class="fa-solid fa-circle-check"></i> ¡Caja perfectamente cuadrada!`;
+      } else if (diferencia > 0) {
+        box.className = 'p-3 rounded-xl text-xs font-bold text-center bg-amber-50 text-amber-700 border border-amber-200';
+        box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Sobrante en caja: +$${diferencia.toFixed(2)}`;
+      } else {
+        box.className = 'p-3 rounded-xl text-xs font-bold text-center bg-red-50 text-red-700 border border-red-200';
+        box.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> Faltante en caja: -$${Math.abs(diferencia).toFixed(2)}`;
+      }
+    }
+
+    async function guardarCierreCaja() {
+      const inputFisico = document.getElementById('input-efectivo-fisico');
+      if (!inputFisico || inputFisico.value.trim() === '') {
+        alert('Por favor ingresa el efectivo físico contado.');
+        return;
+      }
+
+      const contado = Number(inputFisico.value) || 0;
+      const inputBase = document.getElementById('input-base-caja');
+      const base = inputBase ? Number(inputBase.value) || 0 : 0;
+
+      if (typeof registrarCierreCaja === 'function') {
+        await registrarCierreCaja(base, efectivoEsperadoGlobal, contado);
+        inputFisico.value = '';
+        validarArqueo();
+        renderCierresGuardados();
+      } else {
+        alert('Cierre registrado correctamente.');
+      }
+    }
+
+    function renderCierresGuardados() {
+      const contenedor = document.getElementById('lista-cierres');
+      if (!contenedor) return;
+
+      const cierres = window.cierresCaja || window.cierres || [];
+      if (cierres.length === 0) {
+        contenedor.innerHTML = `<p class="text-xs text-gray-400 text-center py-2">No hay cierres registrados.</p>`;
+        return;
+      }
+
+      contenedor.innerHTML = '';
+      cierres.slice().reverse().forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'p-3 rounded-xl border border-gray-200 bg-gray-50 flex justify-between items-center text-xs';
+
+        const fechaStr = c.fecha || (c.created_at ? c.created_at.split('T')[0] : 'Hoy');
+        const esperado = Number(c.efectivo_esperado || c.esperado || 0);
+        const contado = Number(c.efectivo_contado || c.contado || 0);
+        const diff = contado - esperado;
+
+        let badgeDiff = `<span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold text-[10px]">Cuadrado</span>`;
+        if (diff > 0) {
+          badgeDiff = `<span class="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold text-[10px]">Sobrante</span>`;
+        } else if (diff < 0) {
+          badgeDiff = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold text-[10px]">Faltante</span>`;
+        }
+
+        item.innerHTML = `
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-slate-800">${fechaStr}</span>
+              ${badgeDiff}
+            </div>
+            <p class="text-[10px] text-gray-400 mt-0.5">
+              Esperado: $${esperado.toFixed(2)} | Contado: $${contado.toFixed(2)}
+            </p>
+          </div>
+          <span class="font-extrabold text-sm text-slate-800">$${contado.toFixed(2)}</span>
+        `;
+        contenedor.appendChild(item);
+      });
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -166,6 +300,7 @@
         await cargarDatosGlobales();
       }
       calcularCaja();
+      renderCierresGuardados();
     });
   </script>
 </body>
