@@ -3,297 +3,345 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi POS Negocio</title>
-
-  <!-- Tailwind CSS & Bootstrap Icons -->
+  <title>Mi POS - Vender</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body {
-      background-color: #f1f5f9;
-      font-family: system-ui, -apple-system, sans-serif;
-    }
-    .top-navbar {
-      background-color: #0f172a;
-      color: white;
-    }
-    .tab-pill {
-      background-color: #f1f5f9;
-      color: #334155;
-      font-weight: 600;
-      border-radius: 0.5rem;
-      padding: 0.4rem 1rem;
-      transition: all 0.15s ease;
-      font-size: 0.9rem;
-    }
-    .tab-pill:hover {
-      background-color: #e2e8f0;
-    }
-    .tab-pill.active {
-      background-color: #ffffff;
-      color: #0f172a;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border: 1px solid #cbd5e1;
-    }
-    .card-box {
-      background: #ffffff;
-      border-radius: 0.75rem;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   </style>
 </head>
-<body>
+<body class="bg-gray-100 text-gray-800 pb-20">
 
-  <!-- Encabezado Superior -->
-  <header class="top-navbar py-3 px-4">
-    <div class="d-flex align-items-center gap-2">
-      <i class="bi bi-shop text-emerald-400 fs-5"></i>
-      <span class="fw-bold fs-6">Mi POS Negocio</span>
+  <header class="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-lg flex items-center gap-2">
+        <i class="fa-solid fa-boxes-stacked text-emerald-400"></i> Mi POS Negocio
+      </h1>
+      <p class="text-xs text-gray-400">Punto de Venta</p>
     </div>
-    <small class="text-slate-400 d-block text-xs mt-0.5" id="header-subtitle">Arqueo y Cierre Diarios de Caja</small>
   </header>
 
-  <!-- Pestañas de Navegación Centradas -->
-  <div class="container my-4">
-    <div class="d-flex justify-content-center">
-      <div class="bg-slate-200 p-1.5 rounded-xl d-inline-flex gap-1 border border-slate-300">
-        <button class="tab-pill" id="btn-tab-vender" onclick="mostrarSeccion('vender', this, 'Terminal de Ventas')">
-          <i class="bi bi-cart me-1"></i>Vender
-        </button>
-        <button class="tab-pill" id="btn-tab-productos" onclick="mostrarSeccion('productos', this, 'Inventario y Catálogo de Productos')">
-          <i class="bi bi-box-seam me-1"></i>Productos
-        </button>
-        <button class="tab-pill" id="btn-tab-gastos" onclick="mostrarSeccion('gastos', this, 'Control de Gastos del Negocio')">
-          <i class="bi bi-wallet2 me-1"></i>Gastos
-        </button>
-        <button class="tab-pill active" id="btn-tab-caja" onclick="mostrarSeccion('caja', this, 'Arqueo y Cierre Diarios de Caja')">
-          <i class="bi bi-cash-stack me-1"></i>Caja
-        </button>
-        <button class="tab-pill" id="btn-tab-historial" onclick="mostrarSeccion('historial', this, 'Historial de Transacciones')">
-          <i class="bi bi-journal-text me-1"></i>Historial
-        </button>
+  <main class="p-4 max-w-lg mx-auto space-y-4">
+    <!-- Cuadrícula de 4 Tarjetas de Métricas -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-dollar-sign"></i> Ventas Hoy
+        </span>
+        <h2 id="total-ventas-hoy" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Ingreso del dia</p>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-chart-line"></i> Ganancia Neta
+        </span>
+        <h2 id="total-ganancia-neta" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Utilidad real</p>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-blue-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-piggy-bank"></i> Reinversion
+        </span>
+        <h2 id="total-reinversion" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Reposicion stock</p>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-amber-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-money-bill-wave"></i> Caja Efectivo
+        </span>
+        <h2 id="total-efectivo-caja" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Efectivo fisico</p>
       </div>
     </div>
-  </div>
 
-  <!-- Contenedor Principal (Ajustado al ancho original) -->
-  <main class="container pb-5" style="max-width: 550px;">
-
-    <!-- 1. SECCIÓN VENDER -->
-    <section id="sec-vender" class="seccion-app d-none">
-      <div class="card-box p-4 mb-3">
-        <h6 class="fw-bold text-slate-800 mb-3"><i class="bi bi-search me-2 text-indigo-600"></i>Buscar Producto</h6>
-        <input type="text" id="input-buscar-prod" class="form-control form-control-lg border-slate-300 rounded-lg text-sm" placeholder="Escribe el nombre del producto..." onkeyup="if(typeof buscarProductos === 'function') buscarProductos(this.value)">
+    <!-- Barra de resumen rápida -->
+    <div class="bg-slate-900 text-white p-3 rounded-2xl flex justify-around text-center text-xs shadow-inner">
+      <div>
+        <p class="text-[10px] text-gray-400">Ventas Acum.</p>
+        <p id="total-ventas-brutas" class="font-bold text-emerald-400">$0.00</p>
       </div>
-      <div id="lista-busqueda-productos" class="d-flex flex-column gap-2">
-        <!-- Se renderizan los productos -->
+      <div>
+        <p class="text-[10px] text-gray-400">Gastos Fijos</p>
+        <p id="total-gastos" class="font-bold text-rose-400">$0.00</p>
       </div>
-    </section>
+      <div>
+        <p class="text-[10px] text-gray-400">Ventas Reg.</p>
+        <p id="cant-ventas" class="font-bold text-emerald-400">0</p>
+      </div>
+    </div>
 
-    <!-- 2. SECCIÓN PRODUCTOS -->
-    <section id="sec-productos" class="seccion-app d-none" style="max-width: 800px; margin: 0 auto;">
-      <div class="card-box p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold text-slate-800 m-0"><i class="bi bi-boxes me-2 text-indigo-600"></i>Inventario de Productos</h6>
-          <button class="btn btn-primary bg-indigo-600 border-0 btn-sm font-semibold rounded-lg px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalProducto">
-            + Nuevo Producto
-          </button>
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead>
-              <tr class="text-slate-400 text-xs text-uppercase border-bottom">
-                <th class="py-2">Producto</th>
-                <th class="py-2">Precio</th>
-                <th class="py-2">Costo</th>
-                <th class="py-2">Stock</th>
-                <th class="py-2 text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tabla-productos-body">
-              <!-- Se renderiza desde JS -->
-            </tbody>
-          </table>
+    <!-- Navegación con opción de Caja -->
+    <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold overflow-x-auto">
+      <a href="index.html" class="flex-1 text-center py-2 px-2 rounded-lg bg-white shadow text-slate-900 font-bold whitespace-nowrap">
+        <i class="fa-solid fa-cart-plus"></i> Vender
+      </a>
+      <a href="inventario.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-boxes-stacked"></i> Productos
+      </a>
+      <a href="gastos.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-wallet"></i> Gastos
+      </a>
+      <a href="caja.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-cash-register"></i> Caja
+      </a>
+      <a href="historial.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-receipt"></i> Historial
+      </a>
+    </nav>
+
+    <!-- Selección de Producto -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
+        </h3>
+
+        <!-- Buscador de productos -->
+        <div class="relative w-full sm:w-48">
+          <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+          <input 
+            type="text" 
+            id="input-buscar-producto" 
+            placeholder="Buscar..." 
+            oninput="renderGridProductos()"
+            class="w-full pl-7 pr-2 py-1 text-xs bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500 transition-all"
+          />
         </div>
       </div>
-    </section>
 
-    <!-- 3. SECCIÓN GASTOS -->
-    <section id="sec-gastos" class="seccion-app d-none">
-      <div class="card-box p-4">
-        <h6 class="fw-bold text-slate-800 mb-3"><i class="bi bi-journal-minus me-2 text-rose-600"></i>Registrar Gasto</h6>
-        <div class="d-flex flex-column gap-2">
-          <input type="text" id="gasto-concepto" class="form-control text-sm" placeholder="Concepto del gasto">
-          <input type="number" id="gasto-monto" class="form-control text-sm" placeholder="Monto ($)" step="0.01">
-          <button class="btn btn-danger bg-rose-600 border-0 fw-semibold text-sm rounded-lg py-2 mt-1" onclick="if(typeof registrarGasto === 'function') registrarGasto()">Registrar Gasto</button>
-        </div>
-      </div>
-    </section>
+      <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1"></div>
 
-    <!-- 4. SECCIÓN CAJA (Misma captura exacta) -->
-    <section id="sec-caja" class="seccion-app">
-      
-      <!-- Balance de Caja (Hoy) -->
-      <div class="card-box p-4 mb-3">
-        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-          <div class="d-flex align-items-center gap-2">
-            <i class="bi bi-journal-bookmark text-amber-500"></i>
-            <span class="fw-bold text-xs text-slate-800 tracking-wider text-uppercase">BALANCE DE CAJA (HOY)</span>
-          </div>
-          <div class="d-flex align-items-center gap-1">
-            <span class="text-xs text-slate-400">Base $</span>
-            <input type="number" id="caja-base-input" class="form-control form-control-sm font-semibold border-slate-300 text-end py-0.5 px-1" style="width: 70px;" value="0.00" step="0.50" min="0" oninput="calcularBalanceCaja()">
-          </div>
+      <div class="p-3 bg-gray-50 rounded-xl border space-y-2.5">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-gray-500">Seleccionado:</span>
+          <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
         </div>
 
-        <div class="d-flex flex-column gap-2 text-xs">
-          <div class="d-flex justify-content-between text-slate-600">
-            <span>(+) Fondo Inicial de Cambio:</span>
-            <span id="bal-base" class="font-bold text-slate-800">$0.00</span>
-          </div>
-          <div class="d-flex justify-content-between text-emerald-600">
-            <span>(+) Ventas Cobradas en Efectivo:</span>
-            <span id="bal-ventas-efectivo" class="font-bold">$0.00</span>
-          </div>
-          <div class="d-flex justify-content-between text-rose-600">
-            <span>(-) Gastos Pagados en Efectivo:</span>
-            <span id="bal-gastos-efectivo" class="font-bold">$0.00</span>
-          </div>
-
-          <div class="d-flex justify-content-between pt-2 border-top fw-bold text-slate-900 fs-6 mt-1">
-            <span>(=) Efectivo Esperado en Caja:</span>
-            <span id="bal-efectivo-esperado" class="text-amber-600">$0.00</span>
-          </div>
+        <!-- Selector de Método de Pago -->
+        <div class="flex justify-between items-center text-xs pt-1 border-t">
+          <span class="text-gray-500 font-medium">Metodo de Pago:</span>
+          <select id="select-metodo-pago" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white">
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Tarjeta">Tarjeta</option>
+          </select>
         </div>
 
-        <!-- Ventas Digitales Informativo -->
-        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-3">
-          <span class="fw-bold text-slate-400 text-uppercase d-block mb-2" style="font-size: 0.65rem; letter-spacing: 0.05em;">
-            <i class="bi bi-credit-card me-1"></i>VENTAS DIGITALES HOY (INFORMATIVO)
-          </span>
-          <div class="d-flex flex-column gap-1 text-xs">
-            <div class="d-flex justify-content-between text-indigo-600">
-              <span>(+) Ventas por Transferencia:</span>
-              <span id="bal-transferencias" class="font-bold">$0.00</span>
-            </div>
-            <div class="d-flex justify-content-between text-indigo-600">
-              <span>(+) Ventas por Tarjeta:</span>
-              <span id="bal-tarjeta" class="font-bold">$0.00</span>
-            </div>
-            <div class="d-flex justify-content-between pt-1 border-top fw-bold text-slate-800 mt-1">
-              <span>Total General Ventas (Hoy):</span>
-              <span id="bal-total-general">$0.00</span>
-            </div>
+        <!-- Campo para Descuento -->
+        <div class="flex justify-between items-center text-xs pt-1 border-t">
+          <span class="text-gray-500 font-medium">Descuento ($):</span>
+          <input 
+            type="number" 
+            id="input-descuento" 
+            placeholder="0.00" 
+            min="0" 
+            step="0.01"
+            oninput="actualizarResumenSeleccion()"
+            class="w-20 text-right border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white focus:border-emerald-500"
+          />
+        </div>
+
+        <div class="flex justify-between items-center pt-2 border-t">
+          <div class="flex items-center gap-2">
+            <button onclick="cambiarCantidad(-1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">-</button>
+            <span id="label-cantidad" class="font-bold text-xs px-2">1</span>
+            <button onclick="cambiarCantidad(1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">+</button>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] text-gray-400">Total</p>
+            <p id="label-total" class="text-sm font-extrabold text-emerald-600">$0.00</p>
           </div>
         </div>
       </div>
 
-      <!-- Efectuar Arqueo y Cierre -->
-      <div class="card-box p-4 mb-3">
-        <div class="d-flex align-items-center gap-2 border-bottom pb-2 mb-3">
-          <i class="bi bi-lock text-slate-700"></i>
-          <span class="fw-bold text-xs text-slate-800 tracking-wider text-uppercase">EFECTUAR ARQUEO Y CIERRE</span>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label text-xs fw-medium text-slate-600 mb-1">Ingresa el Efectivo Físico Contado ($):</label>
-          <input type="number" id="caja-contado-input" class="form-control form-control-lg bg-slate-50 border-slate-200 font-semibold text-slate-800" placeholder="0.00" step="0.01" oninput="actualizarDiferenciaCierre()">
-        </div>
-
-        <div id="box-diferencia-cierre" class="alert alert-secondary d-none justify-content-between align-items-center mb-3 py-2 px-3 text-xs rounded-lg">
-          <span>Estado del Arqueo:</span>
-          <span id="lbl-diferencia-cierre" class="fw-bold">Ingresa el monto contado</span>
-        </div>
-
-        <button class="btn bg-slate-900 text-white w-100 font-semibold text-xs py-2.5 rounded-lg d-flex align-items-center justify-content-center gap-2" onclick="confirmarYCerrarCajaUI()">
-          <i class="bi bi-inbox-fill"></i> Guardar y Cerrar Caja de Hoy
-        </button>
-      </div>
-
-      <!-- Cierres Guardados -->
-      <div class="card-box p-4">
-        <div class="d-flex align-items-center gap-2 border-bottom pb-2 mb-3">
-          <i class="bi bi-arrow-counterclockwise text-indigo-600"></i>
-          <span class="fw-bold text-xs text-slate-800 tracking-wider text-uppercase">CIERRES GUARDADOS</span>
-        </div>
-        <div id="lista-cierres-guardados" class="d-flex flex-column gap-2">
-          <!-- Renderizado desde app.js -->
-        </div>
-      </div>
-
-    </section>
-
-    <!-- 5. SECCIÓN HISTORIAL -->
-    <section id="sec-historial" class="seccion-app d-none">
-      <div class="row g-3 mb-3">
-        <div class="col-6">
-          <div class="card-box p-3 text-center">
-            <span class="text-xs text-emerald-600 fw-bold uppercase"><i class="bi bi-calendar-event me-1"></i>VENTAS HOY</span>
-            <h3 id="hist-ventas-hoy" class="fw-bold text-slate-800 my-1 fs-4">$0.00</h3>
-            <small id="hist-cant-hoy" class="text-slate-400 text-xs">0 ventas</small>
-          </div>
-        </div>
-        <div class="col-6">
-          <div class="card-box p-3 text-center">
-            <span class="text-xs text-indigo-600 fw-bold uppercase"><i class="bi bi-calendar-month me-1"></i>VENTAS MES</span>
-            <h3 id="hist-ventas-mes" class="fw-bold text-slate-800 my-1 fs-4">$0.00</h3>
-            <small id="hist-cant-mes" class="text-slate-400 text-xs">0 ventas</small>
-          </div>
-        </div>
-      </div>
-
-      <div class="card-box p-4">
-        <h6 class="fw-bold text-slate-700 text-xs text-uppercase mb-3"><i class="bi bi-clock-history me-1"></i>Últimas Ventas</h6>
-        <div id="lista-ultimas-ventas" class="d-flex flex-column gap-2">
-          <!-- Carga dinámicamente -->
-        </div>
-      </div>
-    </section>
-
+      <button onclick="confirmarVenta()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-2">
+        <i class="fa-solid fa-circle-check"></i> Registrar Venta
+      </button>
+    </div>
   </main>
 
-  <!-- JS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
-
-  <!-- Lógica de Navegación del Menú Superior -->
   <script>
-    function mostrarSeccion(idSec, btn, subtitulo) {
-      document.querySelectorAll('.seccion-app').forEach(el => el.classList.add('d-none'));
-      document.querySelectorAll('.tab-pill').forEach(el => el.classList.remove('active'));
+    let productoSeleccionado = null;
+    let cantidadSeleccionada = 1;
 
-      const sec = document.getElementById(`sec-${idSec}`);
-      if (sec) sec.classList.remove('d-none');
-      if (btn) btn.classList.add('active');
+    function renderGridProductos() {
+      const grid = document.getElementById('grid-productos');
+      if (!grid) return;
+      grid.innerHTML = '';
 
-      const sub = document.getElementById('header-subtitle');
-      if (sub && subtitulo) sub.innerText = subtitulo;
+      let lista = window.productos || [];
 
-      if (idSec === 'caja' && typeof calcularBalanceCaja === 'function') {
-        calcularBalanceCaja();
+      const inputBusqueda = document.getElementById('input-buscar-producto');
+      const termino = inputBusqueda ? inputBusqueda.value.trim().toLowerCase() : '';
+
+      if (termino !== '') {
+        lista = lista.filter(p => p.nombre && p.nombre.toLowerCase().includes(termino));
       }
-    }
 
-    async function confirmarYCerrarCajaUI() {
-      const inputContado = document.getElementById('caja-contado-input');
-      if (!inputContado || !inputContado.value) {
-        alert('Por favor, ingresa el efectivo físico contado.');
+      if (lista.length === 0) {
+        grid.innerHTML = `<p class="col-span-2 text-xs text-gray-400 text-center py-4">
+          ${termino !== '' ? `No se encontraron productos para "${termino}".` : 'No hay productos disponibles.'}
+        </p>`;
         return;
       }
-      const base = parseFloat(document.getElementById('caja-base-input').value) || 0;
-      const esperado = parseFloat(document.getElementById('bal-efectivo-esperado').innerText.replace('$', '')) || 0;
-      const contado = parseFloat(inputContado.value) || 0;
 
-      if (typeof registrarCierreCaja === 'function') {
-        await registrarCierreCaja(base, esperado, contado);
-        inputContado.value = '';
-        if (typeof actualizarDiferenciaCierre === 'function') actualizarDiferenciaCierre();
+      lista.forEach(p => {
+        const card = document.createElement('div');
+        const esSeleccionado = productoSeleccionado && productoSeleccionado.id === p.id;
+        const stock = p.stock ?? 0;
+
+        let badgeStock = `<span class="text-[10px] text-gray-400">Stock: ${stock}</span>`;
+        if (stock <= 0) {
+          badgeStock = `<span class="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Agotado</span>`;
+        } else if (stock <= 3) {
+          badgeStock = `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Quedan ${stock}</span>`;
+        }
+        
+        card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+          esSeleccionado ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
+        } ${stock <= 0 ? 'opacity-60' : ''}`;
+        
+        card.onclick = () => {
+          if (stock <= 0) {
+            alert('Este producto se encuentra agotado.');
+            return;
+          }
+          seleccionarProducto(p);
+        };
+
+        card.innerHTML = `
+          <p class="font-bold text-xs text-slate-800 truncate">${p.nombre}</p>
+          <div class="flex justify-between items-end mt-1">
+            <p class="text-emerald-600 font-extrabold text-xs">$${Number(p.precio || 0).toFixed(2)}</p>
+            ${badgeStock}
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function seleccionarProducto(p) {
+      productoSeleccionado = p;
+      cantidadSeleccionada = 1;
+      const inputDesc = document.getElementById('input-descuento');
+      if (inputDesc) inputDesc.value = '';
+      actualizarResumenSeleccion();
+      renderGridProductos();
+    }
+
+    function cambiarCantidad(delta) {
+      if (!productoSeleccionado) return;
+      const nuevoValor = cantidadSeleccionada + delta;
+      if (nuevoValor >= 1 && (productoSeleccionado.stock === null || nuevoValor <= productoSeleccionado.stock)) {
+        cantidadSeleccionada = nuevoValor;
+        actualizarResumenSeleccion();
+      } else if (nuevoValor > productoSeleccionado.stock) {
+        alert(`Stock limite alcanzado (${productoSeleccionado.stock} u.)`);
       }
     }
+
+    function actualizarResumenSeleccion() {
+      const lblNombre = document.getElementById('label-producto-nombre');
+      const lblCant = document.getElementById('label-cantidad');
+      const lblTotal = document.getElementById('label-total');
+      const inputDesc = document.getElementById('input-descuento');
+
+      const descuentoVal = inputDesc ? Math.max(0, Number(inputDesc.value) || 0) : 0;
+
+      if (productoSeleccionado) {
+        lblNombre.textContent = productoSeleccionado.nombre;
+        lblCant.textContent = cantidadSeleccionada;
+        const subtotal = (Number(productoSeleccionado.precio) || 0) * cantidadSeleccionada;
+        const total = Math.max(0, subtotal - descuentoVal);
+        lblTotal.textContent = `$${total.toFixed(2)}`;
+      } else {
+        lblNombre.textContent = 'Ninguno';
+        lblCant.textContent = '1';
+        lblTotal.textContent = '$0.00';
+      }
+    }
+
+    async function confirmarVenta() {
+      if (!productoSeleccionado) {
+        alert('Por favor selecciona un producto.');
+        return;
+      }
+
+      const metodoPago = document.getElementById('select-metodo-pago').value;
+      const inputDesc = document.getElementById('input-descuento');
+      const descuento = inputDesc ? Math.max(0, Number(inputDesc.value) || 0) : 0;
+
+      if (typeof registrarVenta === 'function') {
+        await registrarVenta(productoSeleccionado, cantidadSeleccionada, metodoPago, descuento);
+        productoSeleccionado = null;
+        cantidadSeleccionada = 1;
+        if (inputDesc) inputDesc.value = '';
+        actualizarResumenSeleccion();
+        renderGridProductos();
+        actualizarMetricasUI();
+      }
+    }
+
+    function actualizarMetricasUI() {
+      const vts = window.ventas || [];
+      const gsts = window.gastos || [];
+
+      const hoy = new Date();
+      const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+
+      let totalBrutoHoy = 0;
+      let totalNetaHoy = 0;
+      let totalReinversionHoy = 0;
+      let totalEfectivoHoy = 0;
+
+      let totalAcumulado = 0;
+
+      vts.forEach(v => {
+        const fechaVenta = new Date(v.fecha || v.created_at || 0);
+        const monto = Number(v.total || v.ingreso || 0);
+        const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || 0);
+        const reinversioVal = Number(v.reinversion || 0);
+
+        totalAcumulado += monto;
+
+        if (fechaVenta >= inicioHoy) {
+          totalBrutoHoy += monto;
+          totalNetaHoy += ganancia;
+          totalReinversionHoy += reinversioVal;
+
+          if ((v.metodo_pago || 'Efectivo') === 'Efectivo') {
+            totalEfectivoHoy += monto;
+          }
+        }
+      });
+
+      let totalGastos = 0;
+      gsts.forEach(g => {
+        totalGastos += Number(g.monto || g.precio || 0);
+      });
+
+      document.getElementById('total-ventas-hoy').textContent = `$${totalBrutoHoy.toFixed(2)}`;
+      document.getElementById('total-ganancia-neta').textContent = `$${(totalNetaHoy - totalGastos).toFixed(2)}`;
+      document.getElementById('total-reinversion').textContent = `$${totalReinversionHoy.toFixed(2)}`;
+      document.getElementById('total-efectivo-caja').textContent = `$${totalEfectivoHoy.toFixed(2)}`;
+
+      document.getElementById('total-ventas-brutas').textContent = `$${totalAcumulado.toFixed(2)}`;
+      document.getElementById('total-gastos').textContent = `$${totalGastos.toFixed(2)}`;
+      document.getElementById('cant-ventas').textContent = vts.length;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof cargarDatosGlobales === 'function') {
+        await cargarDatosGlobales();
+      }
+      renderGridProductos();
+      actualizarMetricasUI();
+    });
   </script>
 </body>
 </html>
