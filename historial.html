@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi POS - Historial de Ventas</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Cliente oficial de Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -42,7 +43,7 @@
       </a>
     </nav>
 
-    <!-- Tarjetas Superiores (Ventas Hoy / Ventas Mes / Ganancia Mes / Reinversión Mes) -->
+    <!-- Tarjetas Superiores -->
     <div class="grid grid-cols-2 gap-2.5">
       <div class="bg-white p-3.5 rounded-2xl shadow-sm border space-y-0.5">
         <p class="text-[10px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
@@ -133,13 +134,94 @@
       <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
         <i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> Últimas Ventas
       </h3>
-      <div id="lista-historial-ventas" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
+      <div id="lista-historial-ventas" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+        <p class="text-xs text-gray-400 text-center py-4">Conectando a Supabase...</p>
+      </div>
     </div>
   </main>
 
   <script src="app.js"></script>
+
   <script>
+    // CREDENCIALES PÚBLICAS (ANON) SEGURAS DE TU PROYECTO
+    const SUPABASE_URL = "https://cdwvzbugtrxsgefzpadz.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkd3Z6YnVndHJ4c2dlZnpwYWR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyOTk4ODIsImV4cCI6MjEwNTg3NTg4Mn0.PL3dJfm4LKMAVex7l0QYwv2Q5TOgmH9ugCRdQ3n3DR8";
+
+    let dbClient = null;
     let metaMensualVal = 1500;
+    let listaVentas = [];
+    let listaGastos = [];
+
+    function obtenerClienteSupabase() {
+      if (window.supabaseClient) return window.supabaseClient;
+      if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
+      if (typeof window.supabase?.createClient === 'function') {
+        return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+      return null;
+    }
+
+    async function cargarDatosSupabase() {
+      dbClient = obtenerClienteSupabase();
+
+      if (!dbClient) {
+        document.getElementById('lista-historial-ventas').innerHTML = `
+          <p class="text-xs text-rose-500 text-center py-4">
+            Error al inicializar la librería de Supabase. Revisa la carga de scripts.
+          </p>`;
+        return;
+      }
+
+      try {
+        // Consultar Ventas ordenadas por la fecha más reciente
+        const { data: vData, error: vErr } = await dbClient
+          .from('ventas')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (vErr) throw vErr;
+        listaVentas = vData || [];
+
+        // Consultar Gastos
+        const { data: gData, error: gErr } = await dbClient
+          .from('gastos')
+          .select('*');
+
+        if (!gErr && gData) {
+          listaGastos = gData;
+        }
+
+        renderHistorial();
+      } catch (err) {
+        console.error("Error consultando Supabase:", err);
+        document.getElementById('lista-historial-ventas').innerHTML = `
+          <p class="text-xs text-rose-500 text-center py-4">
+            Error al consultar Supabase: ${err.message || 'Error de conexión/RLS'}
+          </p>`;
+      }
+    }
+
+    async function eliminarVenta(idVenta) {
+      if (!confirm("¿Deseas eliminar esta venta de Supabase?")) return;
+
+      if (!dbClient) dbClient = obtenerClienteSupabase();
+
+      try {
+        const { error } = await dbClient
+          .from('ventas')
+          .delete()
+          .eq('id', idVenta);
+
+        if (error) throw error;
+
+        listaVentas = listaVentas.filter(v => v.id !== idVenta);
+        renderHistorial();
+        alert("Venta eliminada correctamente.");
+      } catch (err) {
+        console.error("Error eliminando venta:", err);
+        alert("No se pudo eliminar la venta: " + (err.message || err));
+      }
+    }
 
     function guardarMetaMensual() {
       const inputVal = parseFloat(document.getElementById('input-meta-mensual').value);
@@ -156,35 +238,137 @@
       renderHistorial();
     }
 
-    async function cargarDatosSupabase() {
-      // 1. Verificar si window.supabase o supabaseGlobal existen desde app.js
-      const sb = window.supabaseClient || window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
-      
-      if (typeof cargarDatosGlobales === 'function') {
-        await cargarDatosGlobales();
-      }
-
-      // Si app.js guardó las variables globales
-      if ((!window.ventas || window.ventas.length === 0) && sb && typeof sb.from === 'function') {
-        try {
-          const { data: vData } = await sb.from('ventas').select('*');
-          if (vData) window.ventas = vData;
-
-          const { data: gData } = await sb.from('gastos').select('*');
-          if (gData) window.gastos = gData;
-        } catch (err) {
-          console.error("Error consultando Supabase:", err);
-        }
-      }
-    }
-
     function renderHistorial() {
       const contenedor = document.getElementById('lista-historial-ventas');
-      const ventas = window.ventas || [];
-      const gastos = window.gastos || [];
-
       const inputMeta = document.getElementById('input-meta-mensual');
       if (inputMeta) inputMeta.value = metaMensualVal;
 
       const hoy = new Date();
-      const hoyStr = typeof obtenerFechaLocal === 'function' ? obtenerFechaLocal() : hoy.toISOString().split('T')[0];
+      const hoyStr = hoy.toISOString().split('T')[0];
+      const mesActual = hoy.getMonth();
+      const anioActual = hoy.getFullYear();
+
+      let totalHoy = 0, cantHoy = 0;
+      let totalMes = 0, cantMes = 0;
+      let gananciaBrutaMes = 0;
+      let reinversionMes = 0;
+
+      listaVentas.forEach(v => {
+        const rawFecha = v.fecha || v.created_at || '';
+        const fechaVenta = rawFecha ? new Date(rawFecha) : new Date();
+        const fechaStr = rawFecha ? fechaVenta.toISOString().split('T')[0] : '';
+
+        const monto = Number(v.total || v.ingreso || v.monto || 0);
+        const ganancia = Number(v.ganancia_neta ?? v.gananciaNeta ?? v.ganancia_bruta ?? v.gananciaBruta ?? 0);
+        const reinversionVal = Number(v.reinversion ?? v.costo ?? (monto - ganancia));
+
+        if (fechaStr === hoyStr) {
+          totalHoy += monto;
+          cantHoy++;
+        }
+
+        if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
+          totalMes += monto;
+          cantMes++;
+          gananciaBrutaMes += ganancia;
+          reinversionMes += reinversionVal;
+        }
+      });
+
+      // Gastos del mes
+      let gastosMes = 0;
+      listaGastos.forEach(g => {
+        const rawFechaGasto = g.fecha || g.created_at || '';
+        const fechaGasto = rawFechaGasto ? new Date(rawFechaGasto) : new Date();
+        if (fechaGasto.getMonth() === mesActual && fechaGasto.getFullYear() === anioActual) {
+          gastosMes += Number(g.monto || g.precio || 0);
+        }
+      });
+
+      const gananciaNetaMes = gananciaBrutaMes - gastosMes;
+
+      // Actualizar métricas en tarjetas
+      document.getElementById('total-ventas-hoy').textContent = `$${totalHoy.toFixed(2)}`;
+      document.getElementById('cant-ventas-hoy').textContent = `${cantHoy} ventas`;
+
+      document.getElementById('total-ventas-mes').textContent = `$${totalMes.toFixed(2)}`;
+      document.getElementById('cant-ventas-mes').textContent = `${cantMes} ventas`;
+
+      document.getElementById('total-ganancia-mes').textContent = `$${gananciaNetaMes.toFixed(2)}`;
+      document.getElementById('total-reinversion-mes').textContent = `$${reinversionMes.toFixed(2)}`;
+
+      // Meta Mensual
+      const pctMeta = metaMensualVal > 0 ? Math.min(100, (totalMes / metaMensualVal) * 100) : 0;
+      document.getElementById('texto-progreso-meta').textContent = `${pctMeta.toFixed(0)}% ($${totalMes.toFixed(2)} / $${metaMensualVal.toFixed(2)})`;
+      document.getElementById('porcentaje-centro').textContent = `${pctMeta.toFixed(0)}%`;
+
+      const circle = document.getElementById('circle-progress');
+      if (circle) circle.setAttribute('stroke-dasharray', `${pctMeta}, 100`);
+
+      // Aplicar Filtro de Fechas
+      const fechaInicio = document.getElementById('fecha-inicio')?.value;
+      const fechaFin = document.getElementById('fecha-fin')?.value;
+
+      let ventasFiltradas = [...listaVentas];
+
+      if (fechaInicio) {
+        ventasFiltradas = ventasFiltradas.filter(v => {
+          const rawF = v.fecha || v.created_at;
+          const f = rawF ? new Date(rawF).toISOString().split('T')[0] : '';
+          return f >= fechaInicio;
+        });
+      }
+
+      if (fechaFin) {
+        ventasFiltradas = ventasFiltradas.filter(v => {
+          const rawF = v.fecha || v.created_at;
+          const f = rawF ? new Date(rawF).toISOString().split('T')[0] : '';
+          return f <= fechaFin;
+        });
+      }
+
+      if (!contenedor) return;
+
+      if (ventasFiltradas.length === 0) {
+        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No se encontraron ventas registradas en Supabase.</p>';
+        return;
+      }
+
+      contenedor.innerHTML = '';
+      ventasFiltradas.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'p-3 bg-gray-50 rounded-xl border flex justify-between items-center text-xs';
+        const rawF = v.fecha || v.created_at || Date.now();
+        const fecha = new Date(rawF).toLocaleString();
+        const metodo = v.metodo_pago || v.metodo || 'Efectivo';
+        const prodNombre = v.producto || v.concepto || 'Venta registrada';
+
+        const montoTotal = Number(v.total || v.ingreso || v.monto || 0);
+        const gananciaItem = Number(v.ganancia_neta ?? v.gananciaNeta ?? v.ganancia_bruta ?? v.gananciaBruta ?? 0);
+        const reinversionItem = Number(v.reinversion ?? v.costo ?? (montoTotal - gananciaItem));
+
+        item.innerHTML = `
+          <div>
+            <p class="font-bold text-slate-800">${prodNombre}</p>
+            <p class="text-[10px] text-gray-500">Cant: ${v.cantidad || 1} u. | Método: <span class="font-semibold text-slate-700">${metodo}</span></p>
+            <p class="text-[10px] text-amber-700 font-medium mt-0.5">
+              <i class="fa-solid fa-boxes-packing text-[9px]"></i> Reinversión: $${reinversionItem.toFixed(2)} | 
+              <span class="text-indigo-600 font-bold">Ganancia: $${gananciaItem.toFixed(2)}</span>
+            </p>
+            <p class="text-[10px] text-gray-400">${fecha}</p>
+          </div>
+          <div class="text-right space-y-1">
+            <p class="font-extrabold text-emerald-600 text-sm">$${montoTotal.toFixed(2)}</p>
+            <button onclick="eliminarVenta('${v.id}')" class="text-rose-600 hover:bg-rose-50 p-1 rounded text-[11px]" title="Eliminar Venta">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        `;
+        contenedor.appendChild(item);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', cargarDatosSupabase);
+  </script>
+</body>
+</html>
