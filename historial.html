@@ -78,215 +78,28 @@
       </div>
     </div>
 
-    <!-- Meta Mensual con Gráfico/Anillo de Progreso -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-          <i class="fa-solid fa-bullseye text-indigo-500"></i> Meta Mensual
-        </h3>
-        <div class="flex items-center gap-1">
-          <span class="text-xs text-gray-500">$</span>
-          <input type="number" id="input-meta-mensual" value="1500" class="w-20 border rounded-lg p-1 text-xs font-semibold text-center outline-none focus:ring-1 focus:ring-indigo-500">
-          <button onclick="guardarMetaMensual()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg">
-            Guardar
-          </button>
-        </div>
-      </div>
-
-      <div class="flex justify-between items-center text-xs font-semibold">
-        <span class="text-gray-600">Progreso del Mes:</span>
-        <span id="texto-progreso-meta" class="text-indigo-600 font-bold">0% ($0.00 / $1500.00)</span>
-      </div>
-
-      <!-- Anillo Circular de Progreso -->
-      <div class="flex justify-center py-2">
-        <div class="relative w-32 h-32 flex items-center justify-center">
-          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-            <path class="text-gray-200" stroke-width="3.8" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            <path id="circle-progress" class="text-indigo-600 transition-all duration-500 ease-out" stroke-dasharray="0, 100" stroke-width="3.8" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-          </svg>
-          <span id="porcentaje-centro" class="absolute text-sm font-extrabold text-indigo-700">0%</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filtro por Fechas -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
-      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5 border-b pb-2">
-        <i class="fa-solid fa-filter text-indigo-600"></i> Filtrar Ventas por Fecha
+    <!-- SECCIÓN: CONTROL DE FONDO DE REINVERSIÓN -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-amber-200 bg-amber-50/20 space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-amber-800 border-b pb-2 flex items-center gap-1.5">
+        <i class="fa-solid fa-hand-holding-dollar text-amber-600"></i> Control de Fondo de Reinversión
       </h3>
-      <div class="grid grid-cols-2 gap-2 text-xs">
+
+      <div class="grid grid-cols-2 gap-2 text-xs bg-white p-3 rounded-xl border">
         <div>
-          <label class="block text-[11px] text-gray-500 mb-1">Desde:</label>
-          <input type="date" id="fecha-inicio" onchange="renderHistorial()" class="w-full border rounded-lg p-2 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500">
+          <p class="text-[10px] text-gray-500 font-semibold">Generado por Ventas:</p>
+          <p id="reinversion-generada-num" class="font-black text-slate-800 text-sm">$0.00</p>
         </div>
         <div>
-          <label class="block text-[11px] text-gray-500 mb-1">Hasta:</label>
-          <input type="date" id="fecha-fin" onchange="renderHistorial()" class="w-full border rounded-lg p-2 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500">
+          <p class="text-[10px] text-gray-500 font-semibold">Disponible para Comprar:</p>
+          <p id="reinversion-disponible-num" class="font-black text-emerald-600 text-sm">$0.00</p>
         </div>
       </div>
-      <button onclick="limpiarFiltroFechas()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-1.5 rounded-lg text-xs">
-        Limpiar Filtro
-      </button>
-    </div>
 
-    <!-- Lista de Últimas Ventas -->
-    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
-      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
-        <i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> Últimas Ventas
-      </h3>
-      <div id="lista-historial-ventas" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
-    </div>
-  </main>
-
-  <script src="app.js"></script>
-  <script>
-    let metaMensualVal = parseFloat(localStorage.getItem('metaMensualPOS')) || 1500;
-
-    function guardarMetaMensual() {
-      const inputVal = parseFloat(document.getElementById('input-meta-mensual').value);
-      if (inputVal && inputVal > 0) {
-        metaMensualVal = inputVal;
-        localStorage.setItem('metaMensualPOS', metaMensualVal);
-        renderHistorial();
-        alert('Meta mensual actualizada.');
-      }
-    }
-
-    function limpiarFiltroFechas() {
-      document.getElementById('fecha-inicio').value = '';
-      document.getElementById('fecha-fin').value = '';
-      renderHistorial();
-    }
-
-    function renderHistorial() {
-      const contenedor = document.getElementById('lista-historial-ventas');
-      const ventas = window.ventas || [];
-      const gastos = window.gastos || [];
-
-      document.getElementById('input-meta-mensual').value = metaMensualVal;
-
-      const hoyStr = new Date().toISOString().split('T')[0];
-      const mesActual = new Date().getMonth();
-      const anioActual = new Date().getFullYear();
-
-      let totalHoy = 0, cantHoy = 0;
-      let totalMes = 0, cantMes = 0;
-      let gananciaBrutaMes = 0;
-      let reinversionMes = 0;
-
-      ventas.forEach(v => {
-        const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
-        const fechaStr = fechaVenta.toISOString().split('T')[0];
-        const monto = Number(v.total || v.ingreso || 0);
-        const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
-        const reinversioVal = Number(v.reinversion || v.costo || 0);
-
-        if (fechaStr === hoyStr) {
-          totalHoy += monto;
-          cantHoy++;
-        }
-
-        if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
-          totalMes += monto;
-          cantMes++;
-          gananciaBrutaMes += ganancia;
-          reinversionMes += reinversioVal;
-        }
-      });
-
-      // Gastos del mes para calcular Ganancia Neta
-      let gastosMes = 0;
-      gastos.forEach(g => {
-        const fechaGasto = new Date(g.fecha || g.created_at || Date.now());
-        if (fechaGasto.getMonth() === mesActual && fechaGasto.getFullYear() === anioActual) {
-          gastosMes += Number(g.monto || g.precio || 0);
-        }
-      });
-
-      const gananciaNetaMes = gananciaBrutaMes - gastosMes;
-
-      document.getElementById('total-ventas-hoy').textContent = `$${totalHoy.toFixed(2)}`;
-      document.getElementById('cant-ventas-hoy').textContent = `${cantHoy} ventas`;
-
-      document.getElementById('total-ventas-mes').textContent = `$${totalMes.toFixed(2)}`;
-      document.getElementById('cant-ventas-mes').textContent = `${cantMes} ventas`;
-
-      const elGananciaMes = document.getElementById('total-ganancia-mes');
-      if (elGananciaMes) {
-        elGananciaMes.textContent = `$${gananciaNetaMes.toFixed(2)}`;
-      }
-
-      const elReinversionMes = document.getElementById('total-reinversion-mes');
-      if (elReinversionMes) {
-        elReinversionMes.textContent = `$${reinversionMes.toFixed(2)}`;
-      }
-
-      const pctMeta = Math.min(100, (totalMes / metaMensualVal) * 100);
-      document.getElementById('texto-progreso-meta').textContent = `${pctMeta.toFixed(0)}% ($${totalMes.toFixed(2)} / $${metaMensualVal.toFixed(2)})`;
-      document.getElementById('porcentaje-centro').textContent = `${pctMeta.toFixed(0)}%`;
-
-      const circle = document.getElementById('circle-progress');
-      if (circle) {
-        circle.setAttribute('stroke-dasharray', `${pctMeta}, 100`);
-      }
-
-      // Aplicar Filtro de Fechas para la lista
-      const fechaInicio = document.getElementById('fecha-inicio').value;
-      const fechaFin = document.getElementById('fecha-fin').value;
-
-      let ventasFiltradas = ventas.slice().reverse();
-
-      if (fechaInicio) {
-        ventasFiltradas = ventasFiltradas.filter(v => {
-          const f = new Date(v.fecha || v.created_at).toISOString().split('T')[0];
-          return f >= fechaInicio;
-        });
-      }
-
-      if (fechaFin) {
-        ventasFiltradas = ventasFiltradas.filter(v => {
-          const f = new Date(v.fecha || v.created_at).toISOString().split('T')[0];
-          return f <= fechaFin;
-        });
-      }
-
-      if (!contenedor) return;
-      if (ventasFiltradas.length === 0) {
-        contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No hay ventas registradas en el periodo seleccionado.</p>';
-        return;
-      }
-
-      contenedor.innerHTML = '';
-      ventasFiltradas.forEach(v => {
-        const item = document.createElement('div');
-        item.className = 'p-3 bg-gray-50 rounded-xl border flex justify-between items-center text-xs';
-        const fecha = new Date(v.fecha || v.created_at || Date.now()).toLocaleString();
-        const metodo = v.metodo_pago || 'Efectivo';
-
-        item.innerHTML = `
-          <div>
-            <p class="font-bold text-slate-800">${v.producto || 'Producto'}</p>
-            <p class="text-[10px] text-gray-500">Cant: ${v.cantidad || 1} u. | Método: <span class="font-semibold text-slate-700">${metodo}</span></p>
-            <p class="text-[10px] text-gray-400">${fecha}</p>
-          </div>
-          <div class="text-right space-y-1">
-            <p class="font-extrabold text-emerald-600 text-sm">$${Number(v.total || v.ingreso || 0).toFixed(2)}</p>
-            <button onclick="eliminarVenta('${v.id}')" class="text-rose-600 hover:bg-rose-50 p-1 rounded text-[11px]" title="Eliminar Venta">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-        `;
-        contenedor.appendChild(item);
-      });
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      if (typeof cargarDatosGlobales === 'function') {
-        await cargarDatosGlobales();
-      }
-      renderHistorial();
-    });
-  </script>
-</body>
-</html>
+      <!-- Registrar Compra de Stock -->
+      <div class="space-y-2 pt-1">
+        <p class="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+          <i class="fa-solid fa-cart-flatbed text-amber-600"></i> Registrar Compra de Mercadería:
+        </p>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="text" id="compra-concepto" placeholder="Ej. Lote de sombras" class="border rounded-xl p-2 text-xs outline-none focus:ring-1 focus:ring-amber-500 bg-white">
+          <input type="number" step="0.01" id="compra-monto" placeholder
