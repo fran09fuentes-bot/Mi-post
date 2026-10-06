@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <button onclick="guardarGasto()" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5">
+      <button onclick="guardarGasto()" class="w-full bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5">
         <i class="fa-solid fa-plus"></i> Guardar Gasto
       </button>
     </div>
@@ -87,10 +87,17 @@
       }
 
       contenedor.innerHTML = '';
-      gastos.forEach(g => {
+      // Mostrar del más reciente al más antiguo
+      const gastosReverse = gastos.slice().reverse();
+
+      gastosReverse.forEach(g => {
         const item = document.createElement('div');
         item.className = 'p-3 bg-gray-50 rounded-xl border flex justify-between items-center text-xs';
-        const fecha = new Date(g.fecha || g.created_at || Date.now()).toLocaleDateString();
+        
+        let fecha = 'Sin fecha';
+        if (g.fecha || g.created_at) {
+          fecha = (g.fecha || g.created_at).split('T')[0];
+        }
 
         item.innerHTML = `
           <div>
@@ -117,22 +124,59 @@
         return;
       }
 
-      const db = window._supabase || window.supabase;
-      await db.from('gastos').insert([{ concepto, monto, fecha: new Date().toISOString() }]);
+      const db = window._supabase || window.supabaseClient;
+      if (!db) {
+        alert('Error: No hay conexión con Supabase.');
+        return;
+      }
 
-      document.getElementById('gasto-concepto').value = '';
-      document.getElementById('gasto-monto').value = '';
+      try {
+        const fechaHoy = typeof obtenerFechaLocal === 'function' ? obtenerFechaLocal() : new Date().toISOString().split('T')[0];
 
-      if (typeof cargarDatosGlobales === 'function') await cargarDatosGlobales();
-      renderListaGastos();
+        const { error } = await db.from('gastos').insert([
+          { 
+            concepto: concepto, 
+            descripcion: concepto,
+            monto: monto, 
+            fecha: fechaHoy 
+          }
+        ]);
+
+        if (error) {
+          console.warn('Error al insertar con campo descripcion, reintentando...', error);
+          const { error: error2 } = await db.from('gastos').insert([
+            { concepto: concepto, monto: monto, fecha: fechaHoy }
+          ]);
+          if (error2) throw error2;
+        }
+
+        document.getElementById('gasto-concepto').value = '';
+        document.getElementById('gasto-monto').value = '';
+
+        if (typeof cargarDatosGlobales === 'function') await cargarDatosGlobales();
+        renderListaGastos();
+        alert('¡Gasto guardado con éxito!');
+
+      } catch (err) {
+        console.error('Error guardando gasto:', err);
+        alert('Error al guardar gasto: ' + err.message);
+      }
     }
 
     async function eliminarGasto(id) {
       if (!confirm('¿Seguro que deseas eliminar este gasto?')) return;
-      const db = window._supabase || window.supabase;
-      await db.from('gastos').delete().eq('id', id);
-      if (typeof cargarDatosGlobales === 'function') await cargarDatosGlobales();
-      renderListaGastos();
+      const db = window._supabase || window.supabaseClient;
+      
+      try {
+        const { error } = await db.from('gastos').delete().eq('id', id);
+        if (error) throw error;
+        
+        if (typeof cargarDatosGlobales === 'function') await cargarDatosGlobales();
+        renderListaGastos();
+      } catch (err) {
+        console.error('Error al eliminar gasto:', err);
+        alert('Error al eliminar gasto: ' + err.message);
+      }
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
