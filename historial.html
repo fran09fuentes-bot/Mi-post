@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi POS - Historial de Ventas</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- CDN de Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -42,7 +43,7 @@
       </a>
     </nav>
 
-    <!-- Tarjetas Superiores (2x2: Ventas Hoy / Ventas Mes / Ganancia Mes / Reinversión Mes) -->
+    <!-- Tarjetas Superiores -->
     <div class="grid grid-cols-2 gap-2.5">
       <div class="bg-white p-3.5 rounded-2xl shadow-sm border space-y-0.5">
         <p class="text-[10px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
@@ -77,7 +78,7 @@
       </div>
     </div>
 
-    <!-- Meta Mensual con Gráfico/Anillo de Progreso -->
+    <!-- Meta Mensual -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
       <div class="flex justify-between items-center border-b pb-2">
         <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
@@ -97,7 +98,6 @@
         <span id="texto-progreso-meta" class="text-indigo-600 font-bold">0% ($0.00 / $1500.00)</span>
       </div>
 
-      <!-- Anillo Circular de Progreso -->
       <div class="flex justify-center py-2">
         <div class="relative w-32 h-32 flex items-center justify-center">
           <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -120,4 +120,93 @@
           <input type="date" id="fecha-inicio" onchange="renderHistorial()" class="w-full border rounded-lg p-2 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500">
         </div>
         <div>
-          <label class="block text-[11px] text-gray-500
+          <label class="block text-[11px] text-gray-500 mb-1">Hasta:</label>
+          <input type="date" id="fecha-fin" onchange="renderHistorial()" class="w-full border rounded-lg p-2 font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500">
+        </div>
+      </div>
+      <button onclick="limpiarFiltroFechas()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-1.5 rounded-lg text-xs">
+        Limpiar Filtro
+      </button>
+    </div>
+
+    <!-- Lista de Últimas Ventas -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 border-b pb-2 flex items-center gap-1.5">
+        <i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> Últimas Ventas
+      </h3>
+      <div id="lista-historial-ventas" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    let metaMensualVal = parseFloat(localStorage.getItem('metaMensualPOS')) || 1500;
+
+    function guardarMetaMensual() {
+      const inputVal = parseFloat(document.getElementById('input-meta-mensual').value);
+      if (inputVal && inputVal > 0) {
+        metaMensualVal = inputVal;
+        localStorage.setItem('metaMensualPOS', metaMensualVal);
+        renderHistorial();
+        alert('Meta mensual actualizada.');
+      }
+    }
+
+    function limpiarFiltroFechas() {
+      document.getElementById('fecha-inicio').value = '';
+      document.getElementById('fecha-fin').value = '';
+      renderHistorial();
+    }
+
+    function renderHistorial() {
+      const contenedor = document.getElementById('lista-historial-ventas');
+      const ventas = window.ventas || [];
+      const gastos = window.gastos || [];
+
+      document.getElementById('input-meta-mensual').value = metaMensualVal;
+
+      const hoyStr = typeof obtenerFechaLocal === 'function' ? obtenerFechaLocal() : new Date().toISOString().split('T')[0];
+      const mesActual = new Date().getMonth();
+      const anioActual = new Date().getFullYear();
+
+      let totalHoy = 0, cantHoy = 0;
+      let totalMes = 0, cantMes = 0;
+      let gananciaBrutaMes = 0;
+      let reinversionMes = 0;
+
+      ventas.forEach(v => {
+        const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
+        const fechaStr = (v.fecha || '').split('T')[0];
+        const monto = Number(v.total || v.ingreso || 0);
+        const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
+        const reinversioVal = Number(v.reinversion || v.costo || 0);
+
+        if (fechaStr === hoyStr) {
+          totalHoy += monto;
+          cantHoy++;
+        }
+
+        if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
+          totalMes += monto;
+          cantMes++;
+          gananciaBrutaMes += ganancia;
+          reinversionMes += reinversioVal;
+        }
+      });
+
+      // Gastos del mes
+      let gastosMes = 0;
+      gastos.forEach(g => {
+        const fechaGasto = new Date(g.fecha || g.created_at || Date.now());
+        if (fechaGasto.getMonth() === mesActual && fechaGasto.getFullYear() === anioActual) {
+          gastosMes += Number(g.monto || g.precio || 0);
+        }
+      });
+
+      const gananciaNetaMes = gananciaBrutaMes - gastosMes;
+
+      document.getElementById('total-ventas-hoy').textContent = `$${totalHoy.toFixed(2)}`;
+      document.getElementById('cant-ventas-hoy').textContent = `${cantHoy} ventas`;
+
+      document.getElementById('total-ventas-mes').textContent = `$${totalMes.toFixed(2)}`;
+      document.getElementById('cant-ventas-
