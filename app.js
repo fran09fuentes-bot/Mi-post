@@ -392,3 +392,132 @@ window.eliminarCierre = eliminarCierre;
 document.addEventListener('DOMContentLoaded', () => {
   cargarDatosGlobales();
 });
+// ==========================================
+// MÓDULO DE GASTOS
+// ==========================================
+
+// Registrar un nuevo gasto en Supabase
+async function registrarGasto() {
+  if (!_supabase) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  // Buscar los campos en la vista (Soporta múltiples IDs posibles)
+  const inputConcepto = document.getElementById('gasto-concepto') || document.getElementById('input-gasto-concepto');
+  const inputMonto = document.getElementById('gasto-monto') || document.getElementById('input-gasto-monto');
+
+  if (!inputConcepto || !inputMonto) {
+    alert('No se encontraron los campos del formulario de gastos.');
+    return;
+  }
+
+  const concepto = inputConcepto.value.trim();
+  const monto = parseFloat(inputMonto.value) || 0;
+
+  if (!concepto) {
+    alert('Por favor ingresa una descripción o concepto para el gasto.');
+    return;
+  }
+
+  if (monto <= 0) {
+    alert('Por favor ingresa un monto válido mayor a 0.');
+    return;
+  }
+
+  try {
+    const fechaHoy = obtenerFechaLocal();
+
+    const { error } = await _supabase
+      .from('gastos')
+      .insert([
+        {
+          concepto: concepto,
+          descripcion: concepto,
+          monto: monto,
+          fecha: fechaHoy,
+          created_at: new Date().toISOString()
+        }
+      ]);
+
+    if (error) throw error;
+
+    alert('¡Gasto registrado con éxito!');
+    inputConcepto.value = '';
+    inputMonto.value = '';
+
+    await cargarDatosGlobales();
+
+  } catch (err) {
+    console.error('Error al registrar gasto:', err);
+    alert('Error al registrar gasto: ' + err.message);
+  }
+}
+
+// Renderizar la lista de gastos guardados
+function renderGastos() {
+  const contenedor = document.getElementById('lista-gastos') || document.getElementById('lista-gastos-registrados');
+  if (!contenedor) return;
+
+  const gastos = window.gastos || [];
+
+  if (gastos.length === 0) {
+    contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No hay gastos registrados.</p>';
+    return;
+  }
+
+  contenedor.innerHTML = '';
+  // Mostrar gastos más recientes primero
+  const gastosOrdenados = gastos.slice().reverse();
+
+  gastosOrdenados.forEach(g => {
+    const item = document.createElement('div');
+    item.className = 'p-3 bg-gray-50 rounded-xl border flex justify-between items-center text-xs mb-2';
+    const monto = parseFloat(g.monto || g.precio || 0).toFixed(2);
+    const fecha = g.fecha ? g.fecha.split('T')[0] : 'Sin fecha';
+
+    item.innerHTML = `
+      <div>
+        <p class="font-bold text-slate-800">${g.concepto || g.descripcion || 'Gasto General'}</p>
+        <p class="text-[10px] text-gray-400">${fecha}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="font-extrabold text-rose-600 text-sm">-$${monto}</span>
+        ${g.id ? `
+          <button onclick="eliminarGasto('${g.id}')" class="text-rose-600 hover:bg-rose-50 p-1 rounded text-[11px]" title="Eliminar Gasto">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        ` : ''}
+      </div>
+    `;
+    contenedor.appendChild(item);
+  });
+}
+
+// Eliminar un gasto de Supabase
+async function eliminarGasto(id) {
+  if (!_supabase) return;
+
+  if (confirm('¿Estás seguro de que deseas eliminar este gasto?')) {
+    try {
+      const { error } = await _supabase
+        .from('gastos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      alert('Gasto eliminado.');
+      await cargarDatosGlobales();
+
+    } catch (err) {
+      console.error('Error al eliminar gasto:', err);
+      alert('Error al eliminar gasto: ' + err.message);
+    }
+  }
+}
+
+// Registrar funciones globales
+window.registrarGasto = registrarGasto;
+window.renderGastos = renderGastos;
+window.eliminarGasto = eliminarGasto;
