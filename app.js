@@ -45,9 +45,12 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar vistas si las funciones existen
+    // Refrescar vistas si las funciones existen en la página actual
     if (typeof calcularBalanceCaja === 'function') calcularBalanceCaja();
     if (typeof renderCierres === 'function') renderCierres();
+    if (typeof renderHistorial === 'function') renderHistorial();
+    if (typeof renderGridProductos === 'function') renderGridProductos();
+    if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
 
   } catch (err) {
     console.error("Error en cargarDatosGlobales:", err);
@@ -83,7 +86,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
     const costoUnitario = Number(productoSeleccionado.costo) || 0;
     
     const subtotal = precioUnitario * cantidad;
-    const totalVenta = subtotal - descuento;
+    const totalVenta = Math.max(0, subtotal - descuento);
     
     const gananciaBruta = (precioUnitario - costoUnitario) * cantidad - descuento;
     const reinversion = costoUnitario * cantidad;
@@ -171,9 +174,6 @@ async function eliminarVenta(id) {
       alert('Venta eliminada y stock devuelto.');
       await cargarDatosGlobales();
 
-      if (typeof renderHistorial === 'function') {
-        renderHistorial();
-      }
     } catch (err) {
       console.error('Error al eliminar venta:', err);
       alert('Error al eliminar venta: ' + err.message);
@@ -193,7 +193,7 @@ function calcularBalanceCaja() {
   if (lblFecha) lblFecha.innerText = fechaHoy;
 
   const inputBase = document.getElementById('caja-base-input');
-  const base = parseFloat(inputBase ? inputBase.value : 10) || 0;
+  const base = parseFloat(inputBase ? inputBase.value : 0) || 0;
 
   // Filtrar ventas del día actual
   const ventasHoy = (window.ventas || []).filter(v => (v.fecha || '').startsWith(fechaHoy));
@@ -323,7 +323,7 @@ function renderCierres() {
   const cierres = window.cierres || [];
 
   if (cierres.length === 0) {
-    contenedor.innerHTML = '<div class="text-muted small">No hay cierres registrados aún.</div>';
+    contenedor.innerHTML = '<div class="text-muted small text-center py-3">No hay cierres registrados aún.</div>';
     return;
   }
 
