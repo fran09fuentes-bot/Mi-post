@@ -109,15 +109,15 @@ function renderProductosVenta(filtro = '') {
   });
 }
 
-// Actualizar las tarjetas de la pantalla superior en Vender
+// Actualizar las tarjetas de la pantalla superior en Vender (Aplica Fórmulas 2 y 3)
 function actualizarMetricasUI() {
   const hoyStr = obtenerFechaLocal();
   const mesActual = new Date().getMonth();
   const anioActual = new Date().getFullYear();
 
   let ventasHoy = 0;
-  let gananciaNetaMes = 0;
-  let reinversionMes = 0;
+  let gananciaBrutaMes = 0;
+  let reposicionStockMes = 0;
   let ventasRegCount = 0;
   let totalVentasAcumuladas = 0;
 
@@ -125,8 +125,8 @@ function actualizarMetricasUI() {
     const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
     const fechaStr = (v.fecha || '').split('T')[0];
     const total = Number(v.total || v.ingreso || 0);
-    const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
-    const reinversioVal = Number(v.reinversion || v.costo || 0);
+    const gananciaBruta = Number(v.ganancia_bruta ?? v.gananciaBruta ?? v.ganancia_neta ?? v.gananciaNeta ?? 0);
+    const costoReposicion = Number(v.reinversion ?? v.costo ?? (total - gananciaBruta));
 
     totalVentasAcumuladas += total;
 
@@ -135,13 +135,13 @@ function actualizarMetricasUI() {
     }
 
     if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
-      gananciaNetaMes += ganancia;
-      reinversionMes += reinversioVal;
+      gananciaBrutaMes += gananciaBruta;
+      reposicionStockMes += costoReposicion;
       ventasRegCount++;
     }
   });
 
-  // Descontar gastos del mes
+  // Gastos operativos del mes (Fórmula 3)
   let gastosMes = 0;
   (window.gastos || []).forEach(g => {
     const fechaGasto = new Date(g.fecha || g.created_at || Date.now());
@@ -150,7 +150,7 @@ function actualizarMetricasUI() {
     }
   });
 
-  gananciaNetaMes -= gastosMes;
+  const gananciaNetaMes = gananciaBrutaMes - gastosMes;
 
   // Actualizar los elementos en pantalla si existen
   const elVentasHoy = document.getElementById('metric-ventas-hoy') || document.getElementById('total-ventas-hoy');
@@ -160,7 +160,7 @@ function actualizarMetricasUI() {
   if (elGananciaNeta) elGananciaNeta.textContent = `$${gananciaNetaMes.toFixed(2)}`;
 
   const elReinversion = document.getElementById('metric-reinversion');
-  if (elReinversion) elReinversion.textContent = `$${reinversionMes.toFixed(2)}`;
+  if (elReinversion) elReinversion.textContent = `$${reposicionStockMes.toFixed(2)}`;
 
   const elVentasAcum = document.getElementById('metric-ventas-acum');
   if (elVentasAcum) elVentasAcum.textContent = `$${totalVentasAcumuladas.toFixed(2)}`;
@@ -182,7 +182,7 @@ function buscarProductos(termino = '') {
   );
 }
 
-// Registrar Ventas
+// Registrar Ventas (Aplica Fórmula 1)
 async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efectivo', descuento = 0) {
   if (!_supabase) {
     alert("Error: Supabase no está conectado.");
@@ -195,7 +195,9 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
     return;
   }
 
-  if (prod.stock !== null && prod.stock !== undefined && prod.stock < cantidad) {
+  const cant = Number(cantidad) || 1;
+
+  if (prod.stock !== null && prod.stock !== undefined && prod.stock < cant) {
     alert(`Stock insuficiente. Quedan ${prod.stock} unidades de ${prod.nombre || prod.producto}.`);
     return;
   }
@@ -203,10 +205,12 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
   try {
     const precioUnitario = Number(prod.precio) || 0;
     const costoUnitario = Number(prod.costo) || 0;
-    const subtotal = precioUnitario * cantidad;
-    const totalVenta = Math.max(0, subtotal - descuento);
-    const gananciaBruta = (precioUnitario - costoUnitario) * cantidad - descuento;
-    const reinversion = costoUnitario * cantidad;
+    const desc = Number(descuento) || 0;
+
+    // FÓRMULA 1: Venta Individual
+    const costoTotalVenta = costoUnitario * cant; // Reposición de Stock
+    const precioTotalVenta = Math.max(0, (precioUnitario * cant) - desc);
+    const gananciaBrutaVenta = precioTotalVenta - costoTotalVenta;
 
     const { error: errVenta } = await _supabase
       .from('ventas')
@@ -215,17 +219,17 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
           cliente: 'Cliente General',
           producto: prod.nombre || prod.producto,
           producto_id: prod.id,
-          cantidad: cantidad,
+          cantidad: cant,
           precio: precioUnitario,
-          descuento: descuento,
-          total: totalVenta,
-          ingreso: totalVenta,
-          gananciaBruta: gananciaBruta,
-          ganancia_bruta: gananciaBruta,
-          gananciaNeta: gananciaBruta,
-          ganancia_neta: gananciaBruta,
-          reinversion: reinversion,
-          costo: reinversion,
+          costo: costoTotalVenta,
+          descuento: desc,
+          total: precioTotalVenta,
+          ingreso: precioTotalVenta,
+          gananciaBruta: gananciaBrutaVenta,
+          ganancia_bruta: gananciaBrutaVenta,
+          gananciaNeta: gananciaBrutaVenta,
+          ganancia_neta: gananciaBrutaVenta,
+          reinversion: costoTotalVenta, // Reposición de Stock
           metodo_pago: metodoPago,
           fecha: new Date().toISOString()
         }
@@ -236,7 +240,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
     if (prod.stock !== null && prod.stock !== undefined) {
       await _supabase
         .from('productos')
-        .update({ stock: Math.max(0, prod.stock - cantidad) })
+        .update({ stock: Math.max(0, prod.stock - cant) })
         .eq('id', prod.id);
     }
 
@@ -281,7 +285,7 @@ async function eliminarVenta(id) {
   }
 }
 
-// Control de Caja
+// Control de Caja (Aplica Fórmula 4)
 function calcularBalanceCaja() {
   const fechaHoy = obtenerFechaLocal();
   
@@ -309,8 +313,15 @@ function calcularBalanceCaja() {
   });
 
   const gastosHoy = (window.gastos || []).filter(g => (g.fecha || '').startsWith(fechaHoy));
-  const gastosEfectivo = gastosHoy.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+  const gastosEfectivo = gastosHoy.reduce((acc, g) => {
+    const metodoGasto = (g.metodo_pago || g.metodo || 'Efectivo').toLowerCase();
+    if (metodoGasto.includes('efectivo') || !metodoGasto) {
+      return acc + (parseFloat(g.monto || g.precio) || 0);
+    }
+    return acc;
+  }, 0);
 
+  // FÓRMULA 4: Balance de Caja
   const efectivoEsperado = base + ventasEfectivo - gastosEfectivo;
   const totalGeneral = ventasEfectivo + ventasTransferencia + ventasTarjeta;
 
@@ -437,31 +448,6 @@ function renderCierres() {
       </div>
     `;
   }).join('');
-}
-
-async function eliminarCierre(id) {
-  if (!_supabase) {
-    alert("Error: Supabase no está conectado.");
-    return;
-  }
-
-  if (confirm('¿Estás seguro de que deseas eliminar este registro de cierre de caja?')) {
-    try {
-      const { error } = await _supabase
-        .from('cierres')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      alert('Cierre de caja eliminado con éxito.');
-      await cargarDatosGlobales();
-
-    } catch (err) {
-      console.error('Error al eliminar cierre:', err);
-      alert('Error al eliminar cierre: ' + err.message);
-    }
-  }
 }
 
 // Registro global de funciones
