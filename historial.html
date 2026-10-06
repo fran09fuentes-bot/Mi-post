@@ -42,30 +42,39 @@
       </a>
     </nav>
 
-    <!-- Tarjetas Superiores (Ventas Hoy / Ventas Mes / Ganancia Mes) -->
-    <div class="grid grid-cols-3 gap-2">
-      <div class="bg-white p-3 rounded-2xl shadow-sm border space-y-0.5">
+    <!-- Tarjetas Superiores (2x2: Ventas Hoy / Ventas Mes / Ganancia Mes / Reinversión Mes) -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border space-y-0.5">
         <p class="text-[10px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
           <i class="fa-regular fa-calendar-check"></i> Ventas Hoy
         </p>
-        <p id="total-ventas-hoy" class="text-base font-black text-slate-900">$0.00</p>
-        <p id="cant-ventas-hoy" class="text-[9px] text-gray-400">0 ventas</p>
+        <p id="total-ventas-hoy" class="text-lg font-black text-slate-900">$0.00</p>
+        <p id="cant-ventas-hoy" class="text-[10px] text-gray-400">0 ventas</p>
       </div>
 
-      <div class="bg-white p-3 rounded-2xl shadow-sm border space-y-0.5">
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border space-y-0.5">
         <p class="text-[10px] font-bold text-blue-600 flex items-center gap-1 uppercase tracking-wider">
           <i class="fa-regular fa-calendar-days"></i> Ventas Mes
         </p>
-        <p id="total-ventas-mes" class="text-base font-black text-slate-900">$0.00</p>
-        <p id="cant-ventas-mes" class="text-[9px] text-gray-400">0 ventas</p>
+        <p id="total-ventas-mes" class="text-lg font-black text-slate-900">$0.00</p>
+        <p id="cant-ventas-mes" class="text-[10px] text-gray-400">0 ventas</p>
       </div>
 
-      <div class="bg-white p-3 rounded-2xl shadow-sm border space-y-0.5">
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border space-y-0.5">
         <p class="text-[10px] font-bold text-indigo-600 flex items-center gap-1 uppercase tracking-wider">
           <i class="fa-solid fa-chart-line"></i> Ganancia Mes
         </p>
-        <p id="total-ganancia-mes" class="text-base font-black text-slate-900">$0.00</p>
-        <p class="text-[9px] text-gray-400">Utilidad neta</p>
+        <p id="total-ganancia-mes" class="text-lg font-black text-slate-900">$0.00</p>
+        <p class="text-[10px] text-gray-400">Utilidad neta</p>
+      </div>
+
+      <!-- NUEVA TARJETA: REINVERSIÓN MES -->
+      <div class="bg-white p-3.5 rounded-2xl shadow-sm border space-y-0.5">
+        <p class="text-[10px] font-bold text-amber-600 flex items-center gap-1 uppercase tracking-wider">
+          <i class="fa-solid fa-boxes-packing"></i> Reinversión Mes
+        </p>
+        <p id="total-reinversion-mes" class="text-lg font-black text-slate-900">$0.00</p>
+        <p class="text-[10px] text-gray-400">Costo reposición</p>
       </div>
     </div>
 
@@ -164,12 +173,14 @@
       let totalHoy = 0, cantHoy = 0;
       let totalMes = 0, cantMes = 0;
       let gananciaBrutaMes = 0;
+      let reinversionMes = 0;
 
       ventas.forEach(v => {
         const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
         const fechaStr = fechaVenta.toISOString().split('T')[0];
         const monto = Number(v.total || v.ingreso || 0);
         const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
+        const reinversioVal = Number(v.reinversion || v.costo || 0);
 
         if (fechaStr === hoyStr) {
           totalHoy += monto;
@@ -180,6 +191,7 @@
           totalMes += monto;
           cantMes++;
           gananciaBrutaMes += ganancia;
+          reinversionMes += reinversioVal;
         }
       });
 
@@ -203,6 +215,11 @@
       const elGananciaMes = document.getElementById('total-ganancia-mes');
       if (elGananciaMes) {
         elGananciaMes.textContent = `$${gananciaNetaMes.toFixed(2)}`;
+      }
+
+      const elReinversionMes = document.getElementById('total-reinversion-mes');
+      if (elReinversionMes) {
+        elReinversionMes.textContent = `$${reinversionMes.toFixed(2)}`;
       }
 
       const pctMeta = Math.min(100, (totalMes / metaMensualVal) * 100);
