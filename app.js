@@ -45,124 +45,13 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar vistas en todos los módulos
-    renderGridProductos();
-    actualizarMetricasUI();
-
+    // Refrescar vistas si las funciones existen
     if (typeof calcularBalanceCaja === 'function') calcularBalanceCaja();
     if (typeof renderCierres === 'function') renderCierres();
-    if (typeof renderHistorial === 'function') renderHistorial();
-    if (typeof renderGastos === 'function') renderGastos();
-    if (typeof renderListaGastos === 'function') renderListaGastos();
 
   } catch (err) {
     console.error("Error en cargarDatosGlobales:", err);
   }
-}
-
-// Renderizar rejilla de productos en la vista de Ventas (index.html)
-function renderGridProductos(filtro = '') {
-  const contenedor = document.getElementById('grid-productos') || document.getElementById('grid-productos-venta');
-  if (!contenedor) return;
-
-  const productosFiltrados = buscarProductos(filtro);
-
-  if (productosFiltrados.length === 0) {
-    contenedor.innerHTML = '<p class="text-xs text-gray-400 text-center py-6 col-span-2">No hay productos disponibles.</p>';
-    return;
-  }
-
-  contenedor.innerHTML = '';
-  productosFiltrados.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'p-3 bg-white border rounded-xl shadow-sm hover:border-emerald-500 cursor-pointer transition flex flex-col justify-between';
-    card.onclick = () => {
-      if (typeof seleccionarProducto === 'function') {
-        seleccionarProducto(p);
-      } else if (typeof seleccionarProductoVenta === 'function') {
-        seleccionarProductoVenta(p);
-      }
-    };
-
-    const nombre = p.nombre || p.producto || 'Producto';
-    const precio = Number(p.precio || 0).toFixed(2);
-    const stock = p.stock !== null && p.stock !== undefined ? p.stock : 'N/A';
-
-    card.innerHTML = `
-      <div>
-        <p class="font-bold text-slate-800 text-xs truncate">${nombre}</p>
-        <p class="text-[10px] text-gray-400">Stock: ${stock}</p>
-      </div>
-      <div class="mt-2 flex justify-between items-center">
-        <span class="font-black text-emerald-600 text-xs">$${precio}</span>
-        <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Elegir</span>
-      </div>
-    `;
-    contenedor.appendChild(card);
-  });
-}
-
-// Actualizar las tarjetas de métricas en la vista principal
-function actualizarMetricasUI() {
-  const hoyStr = obtenerFechaLocal();
-  const mesActual = new Date().getMonth();
-  const anioActual = new Date().getFullYear();
-
-  let ventasHoy = 0;
-  let gananciaNetaMes = 0;
-  let reinversionMes = 0;
-  let ventasRegCount = 0;
-  let totalVentasAcumuladas = 0;
-
-  (window.ventas || []).forEach(v => {
-    const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
-    const fechaStr = (v.fecha || '').split('T')[0];
-    const total = Number(v.total || v.ingreso || 0);
-    const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
-    const reinversioVal = Number(v.reinversion || v.costo || 0);
-
-    totalVentasAcumuladas += total;
-
-    if (fechaStr === hoyStr) {
-      ventasHoy += total;
-    }
-
-    if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
-      gananciaNetaMes += ganancia;
-      reinversionMes += reinversioVal;
-      ventasRegCount++;
-    }
-  });
-
-  // Restar gastos del mes a la ganancia neta
-  let gastosMes = 0;
-  (window.gastos || []).forEach(g => {
-    const fechaGasto = new Date(g.fecha || g.created_at || Date.now());
-    if (fechaGasto.getMonth() === mesActual && fechaGasto.getFullYear() === anioActual) {
-      gastosMes += Number(g.monto || g.precio || 0);
-    }
-  });
-
-  gananciaNetaMes -= gastosMes;
-
-  // Actualizar elementos DOM si existen
-  const elVentasHoy = document.getElementById('metric-ventas-hoy');
-  if (elVentasHoy) elVentasHoy.textContent = `$${ventasHoy.toFixed(2)}`;
-
-  const elGananciaNeta = document.getElementById('metric-ganancia-neta');
-  if (elGananciaNeta) elGananciaNeta.textContent = `$${gananciaNetaMes.toFixed(2)}`;
-
-  const elReinversion = document.getElementById('metric-reinversion');
-  if (elReinversion) elReinversion.textContent = `$${reinversionMes.toFixed(2)}`;
-
-  const elVentasAcum = document.getElementById('metric-ventas-acum');
-  if (elVentasAcum) elVentasAcum.textContent = `$${totalVentasAcumuladas.toFixed(2)}`;
-
-  const elGastosFijos = document.getElementById('metric-gastos-fijos');
-  if (elGastosFijos) elGastosFijos.textContent = `$${gastosMes.toFixed(2)}`;
-
-  const elVentasReg = document.getElementById('metric-ventas-reg');
-  if (elVentasReg) elVentasReg.textContent = `${ventasRegCount}`;
 }
 
 // Función para filtrar productos localmente por nombre
@@ -204,7 +93,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
       .insert([
         {
           cliente: 'Cliente General',
-          producto: productoSeleccionado.nombre || productoSeleccionado.producto,
+          producto: productoSeleccionado.nombre,
           producto_id: productoSeleccionado.id,
           cantidad: cantidad,
           precio: precioUnitario,
@@ -221,7 +110,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
           detalles_productos: [
             {
               id: productoSeleccionado.id,
-              nombre: productoSeleccionado.nombre || productoSeleccionado.producto,
+              nombre: productoSeleccionado.nombre,
               cantidad: cantidad,
               precio: precioUnitario,
               total: totalVenta
@@ -231,4 +120,160 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
         }
       ]);
 
-    if (errVenta)
+    if (errVenta) throw errVenta;
+
+    if (productoSeleccionado.stock !== null && productoSeleccionado.stock !== undefined) {
+      const nuevoStock = Math.max(0, productoSeleccionado.stock - cantidad);
+      await _supabase
+        .from('productos')
+        .update({ stock: nuevoStock })
+        .eq('id', productoSeleccionado.id);
+    }
+
+    alert('¡Venta registrada con éxito!');
+    await cargarDatosGlobales();
+
+  } catch (error) {
+    console.error('Error al registrar venta:', error);
+    alert('Error al registrar venta: ' + error.message);
+  }
+}
+
+// Función global para eliminar ventas
+async function eliminarVenta(id) {
+  if (!_supabase) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  if (confirm('¿Deseas eliminar esta venta? El stock será devuelto al inventario.')) {
+    try {
+      const ventaAEliminar = (window.ventas || []).find(v => v.id === id);
+
+      const { error } = await _supabase
+        .from('ventas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      if (ventaAEliminar && ventaAEliminar.producto_id) {
+        const prod = (window.productos || []).find(p => p.id === ventaAEliminar.producto_id);
+        if (prod && prod.stock !== null && prod.stock !== undefined) {
+          const cantidadDevuelta = ventaAEliminar.cantidad || 1;
+          await _supabase
+            .from('productos')
+            .update({ stock: prod.stock + cantidadDevuelta })
+            .eq('id', prod.id);
+        }
+      }
+
+      alert('Venta eliminada y stock devuelto.');
+      await cargarDatosGlobales();
+
+    } catch (err) {
+      console.error('Error al eliminar venta:', err);
+      alert('Error al eliminar venta: ' + err.message);
+    }
+  }
+}
+
+// ==========================================
+// MÓDULO MEJORADO DE CONTROL DE CAJA
+// ==========================================
+
+// Calcula dinámicamente el balance diario de caja
+function calcularBalanceCaja() {
+  const fechaHoy = obtenerFechaLocal();
+  
+  const lblFecha = document.getElementById('caja-fecha-hoy');
+  if (lblFecha) lblFecha.innerText = fechaHoy;
+
+  const inputBase = document.getElementById('caja-base-input');
+  const base = parseFloat(inputBase ? inputBase.value : 0) || 0;
+
+  // Filtrar ventas del día actual
+  const ventasHoy = (window.ventas || []).filter(v => (v.fecha || '').startsWith(fechaHoy));
+  
+  let ventasEfectivo = 0;
+  let ventasTransferencia = 0;
+  let ventasTarjeta = 0;
+
+  ventasHoy.forEach(v => {
+    const metodo = (v.metodo_pago || 'Efectivo').toLowerCase();
+    const monto = parseFloat(v.total || v.ingreso) || 0;
+
+    if (metodo.includes('transfer') || metodo.includes('chivo')) {
+      ventasTransferencia += monto;
+    } else if (metodo.includes('tarjeta')) {
+      ventasTarjeta += monto;
+    } else {
+      ventasEfectivo += monto;
+    }
+  });
+
+  // Filtrar gastos pagados en efectivo del día actual
+  const gastosHoy = (window.gastos || []).filter(g => (g.fecha || '').startsWith(fechaHoy));
+  const gastosEfectivo = gastosHoy.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+
+  const efectivoEsperado = base + ventasEfectivo - gastosEfectivo;
+  const totalGeneral = ventasEfectivo + ventasTransferencia + ventasTarjeta;
+
+  // Actualizar elementos DOM si existen
+  const elBase = document.getElementById('bal-base');
+  if (elBase) elBase.innerText = `$${base.toFixed(2)}`;
+
+  const elVentasEfectivo = document.getElementById('bal-ventas-efectivo');
+  if (elVentasEfectivo) elVentasEfectivo.innerText = `$${ventasEfectivo.toFixed(2)}`;
+
+  const elGastosEfectivo = document.getElementById('bal-gastos-efectivo');
+  if (elGastosEfectivo) elGastosEfectivo.innerText = `$${gastosEfectivo.toFixed(2)}`;
+
+  const elEfectivoEsperado = document.getElementById('bal-efectivo-esperado');
+  if (elEfectivoEsperado) elEfectivoEsperado.innerText = `$${efectivoEsperado.toFixed(2)}`;
+
+  const elTrans = document.getElementById('bal-transferencias');
+  if (elTrans) elTrans.innerText = `$${ventasTransferencia.toFixed(2)}`;
+
+  const elTarj = document.getElementById('bal-tarjeta');
+  if (elTarj) elTarj.innerText = `$${ventasTarjeta.toFixed(2)}`;
+
+  const elTotalGen = document.getElementById('bal-total-general');
+  if (elTotalGen) elTotalGen.innerText = `$${totalGeneral.toFixed(2)}`;
+
+  actualizarDiferenciaCierre();
+}
+
+// Muestra en tiempo real la diferencia (Sobrante / Faltante / Cuadrado)
+function actualizarDiferenciaCierre() {
+  const inputContado = document.getElementById('caja-contado-input');
+  const box = document.getElementById('box-diferencia-cierre');
+  const lbl = document.getElementById('lbl-diferencia-cierre');
+
+  if (!inputContado || !box || !lbl) return;
+
+  if (!inputContado.value) {
+    box.className = 'alert alert-secondary d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerText = 'Ingresa el monto contado';
+    return;
+  }
+
+  const elEsperado = document.getElementById('bal-efectivo-esperado');
+  const esperado = parseFloat(elEsperado ? elEsperado.innerText.replace('$', '') : 0) || 0;
+  const contado = parseFloat(inputContado.value) || 0;
+  const diff = contado - esperado;
+
+  if (Math.abs(diff) < 0.009) {
+    box.className = 'alert alert-success d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerHTML = '¡Caja perfectamente cuadrada! ($0.00)';
+  } else if (diff > 0) {
+    box.className = 'alert alert-warning d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerHTML = `Sobrante: +$${diff.toFixed(2)}`;
+  } else {
+    box.className = 'alert alert-danger d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerHTML = `Faltante: -$${Math.abs(diff).toFixed(2)}`;
+  }
+}
+
+// Función global para registrar el cierre de caja
+async function registrarCierreCaja(efect
