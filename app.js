@@ -51,6 +51,7 @@ async function cargarDatosGlobales() {
     if (typeof renderHistorial === 'function') renderHistorial();
     if (typeof renderGridProductos === 'function') renderGridProductos();
     if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
+    if (typeof renderGastos === 'function') renderGastos();
 
   } catch (err) {
     console.error("Error en cargarDatosGlobales:", err);
@@ -377,21 +378,6 @@ async function eliminarCierre(id) {
   }
 }
 
-// Registro global de funciones
-window.obtenerFechaLocal = obtenerFechaLocal;
-window.cargarDatosGlobales = cargarDatosGlobales;
-window.buscarProductos = buscarProductos;
-window.registrarVenta = registrarVenta;
-window.eliminarVenta = eliminarVenta;
-window.calcularBalanceCaja = calcularBalanceCaja;
-window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
-window.registrarCierreCaja = registrarCierreCaja;
-window.renderCierres = renderCierres;
-window.eliminarCierre = eliminarCierre;
-
-document.addEventListener('DOMContentLoaded', () => {
-  cargarDatosGlobales();
-});
 // ==========================================
 // MÓDULO DE GASTOS
 // ==========================================
@@ -403,7 +389,6 @@ async function registrarGasto() {
     return;
   }
 
-  // Buscar los campos en la vista (Soporta múltiples IDs posibles)
   const inputConcepto = document.getElementById('gasto-concepto') || document.getElementById('input-gasto-concepto');
   const inputMonto = document.getElementById('gasto-monto') || document.getElementById('input-gasto-monto');
 
@@ -467,7 +452,6 @@ function renderGastos() {
   }
 
   contenedor.innerHTML = '';
-  // Mostrar gastos más recientes primero
   const gastosOrdenados = gastos.slice().reverse();
 
   gastosOrdenados.forEach(g => {
@@ -517,7 +501,21 @@ async function eliminarGasto(id) {
   }
 }
 
-// Registrar funciones globales
+// Registro global de funciones
+window.obtenerFechaLocal = obtenerFechaLocal;
+window.cargarDatosGlobales = cargarDatosGlobales;
+window.buscarProductos = buscarProductos;
+window.registrarVenta = registrarVenta;
+window.eliminarVenta = eliminarVenta;
+window.calcularBalanceCaja = calcularBalanceCaja;
+window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
+window.registrarCierreCaja = registrarCierreCaja;
+window.renderCierres = renderCierres;
+window.eliminarCierre = eliminarCierre;
 window.registrarGasto = registrarGasto;
 window.renderGastos = renderGastos;
 window.eliminarGasto = eliminarGasto;
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatosGlobales();
+});
