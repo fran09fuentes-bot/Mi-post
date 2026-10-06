@@ -42,22 +42,30 @@
       </a>
     </nav>
 
-    <!-- Tarjetas Superiores (Ventas Hoy / Ventas Mes) -->
-    <div class="grid grid-cols-2 gap-3">
-      <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-1">
-        <p class="text-[11px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
+    <!-- Tarjetas Superiores (Ventas Hoy / Ventas Mes / Ganancia Mes) -->
+    <div class="grid grid-cols-3 gap-2">
+      <div class="bg-white p-3 rounded-2xl shadow-sm border space-y-0.5">
+        <p class="text-[10px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
           <i class="fa-regular fa-calendar-check"></i> Ventas Hoy
         </p>
-        <p id="total-ventas-hoy" class="text-xl font-black text-slate-900">$0.00</p>
-        <p id="cant-ventas-hoy" class="text-[11px] text-gray-400">0 ventas</p>
+        <p id="total-ventas-hoy" class="text-base font-black text-slate-900">$0.00</p>
+        <p id="cant-ventas-hoy" class="text-[9px] text-gray-400">0 ventas</p>
       </div>
 
-      <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-1">
-        <p class="text-[11px] font-bold text-blue-600 flex items-center gap-1 uppercase tracking-wider">
+      <div class="bg-white p-3 rounded-2xl shadow-sm border space-y-0.5">
+        <p class="text-[10px] font-bold text-blue-600 flex items-center gap-1 uppercase tracking-wider">
           <i class="fa-regular fa-calendar-days"></i> Ventas Mes
         </p>
-        <p id="total-ventas-mes" class="text-xl font-black text-slate-900">$0.00</p>
-        <p id="cant-ventas-mes" class="text-[11px] text-gray-400">0 ventas</p>
+        <p id="total-ventas-mes" class="text-base font-black text-slate-900">$0.00</p>
+        <p id="cant-ventas-mes" class="text-[9px] text-gray-400">0 ventas</p>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl shadow-sm border space-y-0.5">
+        <p class="text-[10px] font-bold text-indigo-600 flex items-center gap-1 uppercase tracking-wider">
+          <i class="fa-solid fa-chart-line"></i> Ganancia Mes
+        </p>
+        <p id="total-ganancia-mes" class="text-base font-black text-slate-900">$0.00</p>
+        <p class="text-[9px] text-gray-400">Utilidad neta</p>
       </div>
     </div>
 
@@ -145,6 +153,7 @@
     function renderHistorial() {
       const contenedor = document.getElementById('lista-historial-ventas');
       const ventas = window.ventas || [];
+      const gastos = window.gastos || [];
 
       document.getElementById('input-meta-mensual').value = metaMensualVal;
 
@@ -154,11 +163,13 @@
 
       let totalHoy = 0, cantHoy = 0;
       let totalMes = 0, cantMes = 0;
+      let gananciaBrutaMes = 0;
 
       ventas.forEach(v => {
         const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
         const fechaStr = fechaVenta.toISOString().split('T')[0];
         const monto = Number(v.total || v.ingreso || 0);
+        const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
 
         if (fechaStr === hoyStr) {
           totalHoy += monto;
@@ -168,14 +179,31 @@
         if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
           totalMes += monto;
           cantMes++;
+          gananciaBrutaMes += ganancia;
         }
       });
+
+      // Gastos del mes para calcular Ganancia Neta
+      let gastosMes = 0;
+      gastos.forEach(g => {
+        const fechaGasto = new Date(g.fecha || g.created_at || Date.now());
+        if (fechaGasto.getMonth() === mesActual && fechaGasto.getFullYear() === anioActual) {
+          gastosMes += Number(g.monto || g.precio || 0);
+        }
+      });
+
+      const gananciaNetaMes = gananciaBrutaMes - gastosMes;
 
       document.getElementById('total-ventas-hoy').textContent = `$${totalHoy.toFixed(2)}`;
       document.getElementById('cant-ventas-hoy').textContent = `${cantHoy} ventas`;
 
       document.getElementById('total-ventas-mes').textContent = `$${totalMes.toFixed(2)}`;
       document.getElementById('cant-ventas-mes').textContent = `${cantMes} ventas`;
+
+      const elGananciaMes = document.getElementById('total-ganancia-mes');
+      if (elGananciaMes) {
+        elGananciaMes.textContent = `$${gananciaNetaMes.toFixed(2)}`;
+      }
 
       const pctMeta = Math.min(100, (totalMes / metaMensualVal) * 100);
       document.getElementById('texto-progreso-meta').textContent = `${pctMeta.toFixed(0)}% ($${totalMes.toFixed(2)} / $${metaMensualVal.toFixed(2)})`;
