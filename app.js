@@ -2,7 +2,8 @@
 const SUPABASE_URL = 'https://cdwvzbugtrxsgefzpadz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gWOLb2P47i8qiQuSAnAldA_54neh6U7';
 
-let _supabase;
+let _supabase = null;
+
 if (window.supabase && typeof window.supabase.createClient === 'function') {
   _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 } else {
@@ -17,14 +18,14 @@ window.ventas = [];
 window.gastos = [];
 window.cierres = [];
 
-// Función para obtener la fecha local en formato YYYY-MM-DD sin errores de UTC
+// Función para obtener la fecha local en formato YYYY-MM-DD sin desfase UTC
 function obtenerFechaLocal() {
   const hoy = new Date();
   const offset = hoy.getTimezoneOffset() * 60000;
   return new Date(hoy.getTime() - offset).toISOString().split('T')[0];
 }
 
-// Función para cargar todos los datos globales desde Supabase
+// Cargar todos los datos desde Supabase y refrescar las vistas
 async function cargarDatosGlobales() {
   if (!_supabase) return;
 
@@ -45,16 +46,133 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar vistas si las funciones existen
+    // Refrescar automáticamente la interfaz actual
+    renderProductosVenta();
+    actualizarMetricasUI();
+
     if (typeof calcularBalanceCaja === 'function') calcularBalanceCaja();
     if (typeof renderCierres === 'function') renderCierres();
+    if (typeof renderHistorial === 'function') renderHistorial();
+    if (typeof renderGastos === 'function') renderGastos();
+    if (typeof renderListaGastos === 'function') renderListaGastos();
 
   } catch (err) {
     console.error("Error en cargarDatosGlobales:", err);
   }
 }
 
-// Función para filtrar productos localmente por nombre
+// Dibujar productos en el selector de Vender (index.html)
+function renderProductosVenta(filtro = '') {
+  const contenedor = document.getElementById('grid-productos-venta') || 
+                     document.getElementById('grid-productos') || 
+                     document.getElementById('lista-productos-venta');
+                     
+  if (!contenedor) return;
+
+  const prods = buscarProductos(filtro);
+
+  if (prods.length === 0) {
+    contenedor.innerHTML = '<p class="col-span-2 text-xs text-gray-400 text-center py-6">No hay productos disponibles.</p>';
+    return;
+  }
+
+  contenedor.innerHTML = '';
+  prods.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'p-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-emerald-500 cursor-pointer transition flex flex-col justify-between';
+    
+    card.onclick = () => {
+      if (typeof seleccionarProducto === 'function') {
+        seleccionarProducto(p);
+      } else {
+        window.productoSeleccionadoActual = p;
+        const elNombre = document.getElementById('prod-seleccionado-nombre') || document.getElementById('cart-item-name');
+        if (elNombre) elNombre.innerText = p.nombre || p.producto;
+      }
+    };
+
+    const nombre = p.nombre || p.producto || 'Producto';
+    const precio = Number(p.precio || 0).toFixed(2);
+    const stock = p.stock !== null && p.stock !== undefined ? p.stock : 'N/A';
+
+    card.innerHTML = `
+      <div>
+        <p class="font-bold text-slate-800 text-xs truncate">${nombre}</p>
+        <p class="text-[10px] text-gray-400">Stock: ${stock}</p>
+      </div>
+      <div class="mt-2 flex justify-between items-center">
+        <span class="font-black text-emerald-600 text-xs">$${precio}</span>
+        <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Elegir</span>
+      </div>
+    `;
+    contenedor.appendChild(card);
+  });
+}
+
+// Actualizar las tarjetas de la pantalla superior en Vender
+function actualizarMetricasUI() {
+  const hoyStr = obtenerFechaLocal();
+  const mesActual = new Date().getMonth();
+  const anioActual = new Date().getFullYear();
+
+  let ventasHoy = 0;
+  let gananciaNetaMes = 0;
+  let reinversionMes = 0;
+  let ventasRegCount = 0;
+  let totalVentasAcumuladas = 0;
+
+  (window.ventas || []).forEach(v => {
+    const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
+    const fechaStr = (v.fecha || '').split('T')[0];
+    const total = Number(v.total || v.ingreso || 0);
+    const ganancia = Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
+    const reinversioVal = Number(v.reinversion || v.costo || 0);
+
+    totalVentasAcumuladas += total;
+
+    if (fechaStr === hoyStr) {
+      ventasHoy += total;
+    }
+
+    if (fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
+      gananciaNetaMes += ganancia;
+      reinversionMes += reinversioVal;
+      ventasRegCount++;
+    }
+  });
+
+  // Descontar gastos del mes
+  let gastosMes = 0;
+  (window.gastos || []).forEach(g => {
+    const fechaGasto = new Date(g.fecha || g.created_at || Date.now());
+    if (fechaGasto.getMonth() === mesActual && fechaGasto.getFullYear() === anioActual) {
+      gastosMes += Number(g.monto || g.precio || 0);
+    }
+  });
+
+  gananciaNetaMes -= gastosMes;
+
+  // Actualizar los elementos en pantalla si existen
+  const elVentasHoy = document.getElementById('metric-ventas-hoy') || document.getElementById('total-ventas-hoy');
+  if (elVentasHoy) elVentasHoy.textContent = `$${ventasHoy.toFixed(2)}`;
+
+  const elGananciaNeta = document.getElementById('metric-ganancia-neta');
+  if (elGananciaNeta) elGananciaNeta.textContent = `$${gananciaNetaMes.toFixed(2)}`;
+
+  const elReinversion = document.getElementById('metric-reinversion');
+  if (elReinversion) elReinversion.textContent = `$${reinversionMes.toFixed(2)}`;
+
+  const elVentasAcum = document.getElementById('metric-ventas-acum');
+  if (elVentasAcum) elVentasAcum.textContent = `$${totalVentasAcumuladas.toFixed(2)}`;
+
+  const elGastosFijos = document.getElementById('metric-gastos-fijos');
+  if (elGastosFijos) elGastosFijos.textContent = `$${gastosMes.toFixed(2)}`;
+
+  const elVentasReg = document.getElementById('metric-ventas-reg');
+  if (elVentasReg) elVentasReg.textContent = `${ventasRegCount}`;
+}
+
+// Filtrar productos
 function buscarProductos(termino = '') {
   if (!termino.trim()) return window.productos || [];
   const query = termino.toLowerCase().trim();
@@ -64,27 +182,29 @@ function buscarProductos(termino = '') {
   );
 }
 
-// Función global para registrar ventas
+// Registrar Ventas
 async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efectivo', descuento = 0) {
   if (!_supabase) {
     alert("Error: Supabase no está conectado.");
     return;
   }
 
-  if (productoSeleccionado.stock !== null && productoSeleccionado.stock !== undefined) {
-    if (productoSeleccionado.stock < cantidad) {
-      alert(`Stock insuficiente. Quedan ${productoSeleccionado.stock} unidades de ${productoSeleccionado.nombre}.`);
-      return;
-    }
+  const prod = productoSeleccionado || window.productoSeleccionadoActual;
+  if (!prod) {
+    alert("Por favor selecciona un producto de la lista.");
+    return;
+  }
+
+  if (prod.stock !== null && prod.stock !== undefined && prod.stock < cantidad) {
+    alert(`Stock insuficiente. Quedan ${prod.stock} unidades de ${prod.nombre || prod.producto}.`);
+    return;
   }
 
   try {
-    const precioUnitario = Number(productoSeleccionado.precio) || 0;
-    const costoUnitario = Number(productoSeleccionado.costo) || 0;
-    
+    const precioUnitario = Number(prod.precio) || 0;
+    const costoUnitario = Number(prod.costo) || 0;
     const subtotal = precioUnitario * cantidad;
     const totalVenta = Math.max(0, subtotal - descuento);
-    
     const gananciaBruta = (precioUnitario - costoUnitario) * cantidad - descuento;
     const reinversion = costoUnitario * cantidad;
 
@@ -93,8 +213,8 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
       .insert([
         {
           cliente: 'Cliente General',
-          producto: productoSeleccionado.nombre,
-          producto_id: productoSeleccionado.id,
+          producto: prod.nombre || prod.producto,
+          producto_id: prod.id,
           cantidad: cantidad,
           precio: precioUnitario,
           descuento: descuento,
@@ -107,27 +227,17 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
           reinversion: reinversion,
           costo: reinversion,
           metodo_pago: metodoPago,
-          detalles_productos: [
-            {
-              id: productoSeleccionado.id,
-              nombre: productoSeleccionado.nombre,
-              cantidad: cantidad,
-              precio: precioUnitario,
-              total: totalVenta
-            }
-          ],
           fecha: new Date().toISOString()
         }
       ]);
 
     if (errVenta) throw errVenta;
 
-    if (productoSeleccionado.stock !== null && productoSeleccionado.stock !== undefined) {
-      const nuevoStock = Math.max(0, productoSeleccionado.stock - cantidad);
+    if (prod.stock !== null && prod.stock !== undefined) {
       await _supabase
         .from('productos')
-        .update({ stock: nuevoStock })
-        .eq('id', productoSeleccionado.id);
+        .update({ stock: Math.max(0, prod.stock - cantidad) })
+        .eq('id', prod.id);
     }
 
     alert('¡Venta registrada con éxito!');
@@ -139,22 +249,15 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
   }
 }
 
-// Función global para eliminar ventas
+// Eliminar Ventas
 async function eliminarVenta(id) {
-  if (!_supabase) {
-    alert("Error: Supabase no está conectado.");
-    return;
-  }
+  if (!_supabase) return;
 
   if (confirm('¿Deseas eliminar esta venta? El stock será devuelto al inventario.')) {
     try {
       const ventaAEliminar = (window.ventas || []).find(v => v.id === id);
 
-      const { error } = await _supabase
-        .from('ventas')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await _supabase.from('ventas').delete().eq('id', id);
       if (error) throw error;
 
       if (ventaAEliminar && ventaAEliminar.producto_id) {
@@ -178,11 +281,7 @@ async function eliminarVenta(id) {
   }
 }
 
-// ==========================================
-// MÓDULO MEJORADO DE CONTROL DE CAJA
-// ==========================================
-
-// Calcula dinámicamente el balance diario de caja
+// Control de Caja
 function calcularBalanceCaja() {
   const fechaHoy = obtenerFechaLocal();
   
@@ -192,12 +291,9 @@ function calcularBalanceCaja() {
   const inputBase = document.getElementById('caja-base-input');
   const base = parseFloat(inputBase ? inputBase.value : 0) || 0;
 
-  // Filtrar ventas del día actual
   const ventasHoy = (window.ventas || []).filter(v => (v.fecha || '').startsWith(fechaHoy));
   
-  let ventasEfectivo = 0;
-  let ventasTransferencia = 0;
-  let ventasTarjeta = 0;
+  let ventasEfectivo = 0, ventasTransferencia = 0, ventasTarjeta = 0;
 
   ventasHoy.forEach(v => {
     const metodo = (v.metodo_pago || 'Efectivo').toLowerCase();
@@ -212,14 +308,12 @@ function calcularBalanceCaja() {
     }
   });
 
-  // Filtrar gastos pagados en efectivo del día actual
   const gastosHoy = (window.gastos || []).filter(g => (g.fecha || '').startsWith(fechaHoy));
   const gastosEfectivo = gastosHoy.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
 
   const efectivoEsperado = base + ventasEfectivo - gastosEfectivo;
   const totalGeneral = ventasEfectivo + ventasTransferencia + ventasTarjeta;
 
-  // Actualizar elementos DOM si existen
   const elBase = document.getElementById('bal-base');
   if (elBase) elBase.innerText = `$${base.toFixed(2)}`;
 
@@ -244,7 +338,6 @@ function calcularBalanceCaja() {
   actualizarDiferenciaCierre();
 }
 
-// Muestra en tiempo real la diferencia (Sobrante / Faltante / Cuadrado)
 function actualizarDiferenciaCierre() {
   const inputContado = document.getElementById('caja-contado-input');
   const box = document.getElementById('box-diferencia-cierre');
@@ -275,5 +368,116 @@ function actualizarDiferenciaCierre() {
   }
 }
 
-// Función global para registrar el cierre de caja
-async function registrarCierreCaja(efect
+async function registrarCierreCaja(efectivoBase, efectivoEsperado, efectivoContado) {
+  if (!_supabase) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  try {
+    const fechaHoy = obtenerFechaLocal();
+    const base = parseFloat(efectivoBase) || 0;
+    const esperado = parseFloat(efectivoEsperado) || 0;
+    const contado = parseFloat(efectivoContado) || 0;
+    const diferencia = contado - esperado;
+
+    const { error } = await _supabase
+      .from('cierres')
+      .insert([
+        {
+          fecha: fechaHoy,
+          efectivo_base: base,
+          efectivo_esperado: esperado,
+          efectivo_contado: contado,
+          diferencia: diferencia
+        }
+      ]);
+
+    if (error) throw error;
+
+    alert('¡Cierre de caja guardado con éxito!');
+    await cargarDatosGlobales();
+
+  } catch (err) {
+    console.error('Error al registrar cierre de caja:', err);
+    alert('Error al registrar cierre de caja: ' + err.message);
+  }
+}
+
+function renderCierres() {
+  const contenedor = document.getElementById('lista-cierres-guardados');
+  if (!contenedor) return;
+
+  const cierres = window.cierres || [];
+
+  if (cierres.length === 0) {
+    contenedor.innerHTML = '<div class="text-muted small text-center py-3">No hay cierres registrados aún.</div>';
+    return;
+  }
+
+  contenedor.innerHTML = cierres.map(c => {
+    const esperado = parseFloat(c.efectivo_esperado) || 0;
+    const contado = parseFloat(c.efectivo_contado) || 0;
+    const diff = c.diferencia !== undefined ? parseFloat(c.diferencia) : (contado - esperado);
+
+    let statusBadge = '<span class="badge bg-success">Cuadrado</span>';
+    if (diff > 0.009) statusBadge = `<span class="badge bg-warning text-dark">Sobrante (+$${diff.toFixed(2)})</span>`;
+    if (diff < -0.009) statusBadge = `<span class="badge bg-danger">Faltante (-$${Math.abs(diff).toFixed(2)})</span>`;
+
+    return `
+      <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center border mb-2">
+        <div>
+          <div class="fw-bold">${c.fecha || 'Sin fecha'} ${statusBadge}</div>
+          <small class="text-muted">Esperado: $${esperado.toFixed(2)} | Contado: $${contado.toFixed(2)}</small>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <span class="fw-bold fs-5">$${contado.toFixed(2)}</span>
+          ${c.id ? `<button class="btn btn-sm btn-outline-danger" onclick="eliminarCierre('${c.id}')"><i class="bi bi-trash"></i></button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function eliminarCierre(id) {
+  if (!_supabase) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  if (confirm('¿Estás seguro de que deseas eliminar este registro de cierre de caja?')) {
+    try {
+      const { error } = await _supabase
+        .from('cierres')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      alert('Cierre de caja eliminado con éxito.');
+      await cargarDatosGlobales();
+
+    } catch (err) {
+      console.error('Error al eliminar cierre:', err);
+      alert('Error al eliminar cierre: ' + err.message);
+    }
+  }
+}
+
+// Registro global de funciones
+window.obtenerFechaLocal = obtenerFechaLocal;
+window.cargarDatosGlobales = cargarDatosGlobales;
+window.renderProductosVenta = renderProductosVenta;
+window.actualizarMetricasUI = actualizarMetricasUI;
+window.buscarProductos = buscarProductos;
+window.registrarVenta = registrarVenta;
+window.eliminarVenta = eliminarVenta;
+window.calcularBalanceCaja = calcularBalanceCaja;
+window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
+window.registrarCierreCaja = registrarCierreCaja;
+window.renderCierres = renderCierres;
+window.eliminarCierre = eliminarCierre;
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatosGlobales();
+});
