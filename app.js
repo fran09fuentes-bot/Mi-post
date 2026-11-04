@@ -52,7 +52,7 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Ejecutar vistas de forma segura (solo si existen en la página actual)
+    // Ejecutar vistas de forma segura (asegurando Vender, Inventario y Métricas)
     if (typeof renderProductosVenta === 'function') renderProductosVenta();
     if (typeof renderGridProductos === 'function') renderGridProductos();
     if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
