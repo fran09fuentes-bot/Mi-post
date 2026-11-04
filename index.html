@@ -1,4 +1,247 @@
-<script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi POS - Vender</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 pb-20">
+
+  <header class="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="font-bold text-lg flex items-center gap-2">
+        <i class="fa-solid fa-boxes-stacked text-emerald-400"></i> Mi POS Negocio
+      </h1>
+      <p class="text-xs text-gray-400">Punto de Venta</p>
+    </div>
+  </header>
+
+  <main class="p-4 max-w-lg mx-auto space-y-4">
+    <!-- Tarjetas de Métricas -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-emerald-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-dollar-sign"></i> Ventas Hoy
+        </span>
+        <h2 id="total-ventas-hoy" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Ingreso del dia</p>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-chart-line"></i> Ganancia Neta
+        </span>
+        <h2 id="total-ganancia-neta" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Utilidad real</p>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-blue-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-piggy-bank"></i> Reinversion
+        </span>
+        <h2 id="total-reinversion" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Reposicion stock</p>
+      </div>
+
+      <div class="bg-white p-3 rounded-2xl border shadow-sm space-y-0.5">
+        <span class="text-[10px] font-bold text-amber-600 uppercase flex items-center gap-1">
+          <i class="fa-solid fa-money-bill-wave"></i> Caja Efectivo
+        </span>
+        <h2 id="total-efectivo-caja" class="text-base font-extrabold text-slate-800">$0.00</h2>
+        <p class="text-[9px] text-gray-400">Efectivo fisico</p>
+      </div>
+    </div>
+
+    <!-- Barra de resumen rápida -->
+    <div class="bg-slate-900 text-white p-3 rounded-2xl flex justify-around text-center text-xs shadow-inner">
+      <div>
+        <p class="text-[10px] text-gray-400">Ventas Acum.</p>
+        <p id="total-ventas-brutas" class="font-bold text-emerald-400">$0.00</p>
+      </div>
+      <div>
+        <p class="text-[10px] text-gray-400">Gastos Fijos</p>
+        <p id="total-gastos" class="font-bold text-rose-400">$0.00</p>
+      </div>
+      <div>
+        <p class="text-[10px] text-gray-400">Ventas Reg.</p>
+        <p id="cant-ventas" class="font-bold text-emerald-400">0</p>
+      </div>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="flex bg-gray-200 p-1 rounded-xl gap-1 text-xs font-semibold overflow-x-auto">
+      <a href="index.html" class="flex-1 text-center py-2 px-2 rounded-lg bg-white shadow text-slate-900 font-bold whitespace-nowrap">
+        <i class="fa-solid fa-cart-plus"></i> Vender
+      </a>
+      <a href="inventario.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-boxes-stacked"></i> Productos
+      </a>
+      <a href="gastos.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-wallet"></i> Gastos
+      </a>
+      <a href="caja.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-cash-register"></i> Caja
+      </a>
+      <a href="historial.html" class="flex-1 text-center py-2 px-2 rounded-lg text-gray-600 whitespace-nowrap">
+        <i class="fa-solid fa-receipt"></i> Historial
+      </a>
+    </nav>
+
+    <!-- RESUMEN MENSUAL Y GRÁFICAS -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-chart-pie text-indigo-500"></i> Resumen Mensual y Gráficas
+        </h3>
+        <div class="flex items-center gap-1.5">
+          <select id="resumen-select-mes" onchange="renderResumenMensual()" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-700 bg-gray-50 outline-none">
+            <option value="0">Enero</option>
+            <option value="1">Febrero</option>
+            <option value="2">Marzo</option>
+            <option value="3">Abril</option>
+            <option value="4">Mayo</option>
+            <option value="5">Junio</option>
+            <option value="6">Julio</option>
+            <option value="7">Agosto</option>
+            <option value="8">Septiembre</option>
+            <option value="9">Octubre</option>
+            <option value="10">Noviembre</option>
+            <option value="11">Diciembre</option>
+          </select>
+          <select id="resumen-select-anio" onchange="renderResumenMensual()" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-700 bg-gray-50 outline-none">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div class="p-2.5 bg-emerald-50/60 border border-emerald-100 rounded-xl">
+          <span class="text-[10px] text-emerald-700 font-semibold uppercase">Ventas Mes</span>
+          <h4 id="resumen-total-ventas" class="text-base font-extrabold text-emerald-700 mt-0.5">$0.00</h4>
+        </div>
+        <div class="p-2.5 bg-amber-50/60 border border-amber-100 rounded-xl">
+          <span class="text-[10px] text-amber-700 font-semibold uppercase">Ganancia Neta</span>
+          <h4 id="resumen-ganancia-neta" class="text-base font-extrabold text-amber-700 mt-0.5">$0.00</h4>
+        </div>
+        <div class="p-2.5 bg-blue-50/60 border border-blue-100 rounded-xl">
+          <span class="text-[10px] text-blue-700 font-semibold uppercase">Disp. Recompra</span>
+          <h4 id="resumen-reinversion" class="text-base font-extrabold text-blue-700 mt-0.5">$0.00</h4>
+        </div>
+        <div class="p-2.5 bg-purple-50/60 border border-purple-100 rounded-xl">
+          <span class="text-[10px] text-purple-700 font-semibold uppercase">N° Transacciones</span>
+          <h4 id="resumen-transacciones" class="text-base font-extrabold text-purple-700 mt-0.5">0</h4>
+        </div>
+      </div>
+      <div class="p-2.5 bg-pink-50/60 border border-pink-100 rounded-xl">
+        <span class="text-[10px] text-pink-700 font-semibold uppercase">Ticket Promedio</span>
+        <h4 id="resumen-ticket-promedio" class="text-base font-extrabold text-pink-700 mt-0.5">$0.00</h4>
+      </div>
+
+      <div class="space-y-1.5 pt-2 border-t">
+        <div class="flex justify-between items-center text-xs">
+          <span class="font-bold text-slate-700">Comportamiento por Días</span>
+          <span id="label-mejor-dia" class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Top: -</span>
+        </div>
+        <div class="relative h-44 w-full">
+          <canvas id="chart-dias-semana"></canvas>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t">
+        <p class="font-bold text-slate-700 text-xs mb-2">🔥 Top Productos del Mes</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-gray-50 text-gray-500 uppercase border-b">
+              <tr>
+                <th class="py-1.5 px-2">Producto</th>
+                <th class="py-1.5 px-2 text-center">Cant.</th>
+                <th class="py-1.5 px-2 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody id="resumen-tabla-top-productos" class="divide-y">
+              <tr><td colspan="3" class="text-center py-2 text-gray-400 text-[11px]">Cargando datos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SELECCIONAR PRODUCTO Y VENDER -->
+    <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
+        <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
+        </h3>
+        <div class="relative w-full sm:w-48">
+          <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+          <input 
+            type="text" 
+            id="input-buscar-producto" 
+            placeholder="Buscar..." 
+            oninput="renderGridProductos()"
+            class="w-full pl-7 pr-2 py-1 text-xs bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500 transition-all"
+          />
+        </div>
+      </div>
+
+      <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1"></div>
+
+      <div class="p-3 bg-gray-50 rounded-xl border space-y-2.5">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-gray-500">Seleccionado:</span>
+          <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
+        </div>
+        <div class="flex justify-between items-center text-xs pt-1 border-t">
+          <span class="text-gray-500 font-medium">Metodo de Pago:</span>
+          <select id="select-metodo-pago" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white">
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Tarjeta">Tarjeta</option>
+          </select>
+        </div>
+        <div class="flex justify-between items-center text-xs pt-1 border-t">
+          <span class="text-gray-500 font-medium">Descuento ($):</span>
+          <input 
+            type="number" 
+            id="input-descuento" 
+            placeholder="0.00" 
+            min="0" 
+            step="0.01"
+            oninput="actualizarResumenSeleccion()"
+            class="w-20 text-right border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white focus:border-emerald-500"
+          />
+        </div>
+        <div class="flex justify-between items-center pt-2 border-t">
+          <div class="flex items-center gap-2">
+            <button onclick="cambiarCantidad(-1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">-</button>
+            <span id="label-cantidad" class="font-bold text-xs px-2">1</span>
+            <button onclick="cambiarCantidad(1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">+</button>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] text-gray-400">Total</p>
+            <p id="label-total" class="text-sm font-extrabold text-emerald-600">$0.00</p>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="confirmarVenta()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-2">
+        <i class="fa-solid fa-circle-check"></i> Registrar Venta
+      </button>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
     let productoSeleccionado = null;
     let cantidadSeleccionada = 1;
 
@@ -122,3 +365,5 @@
       renderGridProductos();
     });
   </script>
+</body>
+</html>
