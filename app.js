@@ -27,11 +27,10 @@ function obtenerFechaLocal() {
   return new Date(hoy.getTime() - offset).toISOString().split('T')[0];
 }
 
-// Cargar todos los datos desde Supabase y refrescar las vistas
+// Cargar todos los datos desde Supabase y refrescar TODAS las vistas de la app
 async function cargarDatosGlobales() {
   const client = obtenerSupabase();
   if (!client) {
-    // Si la librería de Supabase aún carga, reintentamos en 200ms automáticamente
     setTimeout(cargarDatosGlobales, 200);
     return;
   }
@@ -53,16 +52,20 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar automáticamente todas las vistas de la interfaz
+    // Refrescar automáticamente TODAS las vistas e interfaces de cualquier pestaña
     if (typeof renderProductosVenta === 'function') renderProductosVenta();
     if (typeof renderGridProductos === 'function') renderGridProductos();
     if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
 
+    // Sincronización para inventario, productos, gastos, caja e historial
+    if (typeof renderProductos === 'function') renderProductos();
+    if (typeof renderInventario === 'function') renderInventario();
+    if (typeof renderTablaProductos === 'function') renderTablaProductos();
+    if (typeof renderGastos === 'function') renderGastos();
+    if (typeof renderListaGastos === 'function') renderListaGastos();
     if (typeof calcularBalanceCaja === 'function') calcularBalanceCaja();
     if (typeof renderCierres === 'function') renderCierres();
     if (typeof renderHistorial === 'function') renderHistorial();
-    if (typeof renderGastos === 'function') renderGastos();
-    if (typeof renderListaGastos === 'function') renderListaGastos();
     if (typeof renderResumenMensual === 'function') renderResumenMensual();
 
   } catch (err) {
@@ -150,7 +153,6 @@ function actualizarMetricasUI() {
     }
   });
 
-  // Descontar gastos del mes
   let gastosMes = 0;
   (window.gastos || []).forEach(g => {
     const fechaGasto = new Date(g.fecha || g.created_at || Date.now());
@@ -161,7 +163,6 @@ function actualizarMetricasUI() {
 
   gananciaNetaMes -= gastosMes;
 
-  // Actualizar los elementos en pantalla si existen
   const elVentasHoy = document.getElementById('metric-ventas-hoy') || document.getElementById('total-ventas-hoy');
   if (elVentasHoy) elVentasHoy.textContent = `$${ventasHoy.toFixed(2)}`;
 
@@ -348,4 +349,89 @@ function calcularBalanceCaja() {
   if (elTarj) elTarj.innerText = `$${ventasTarjeta.toFixed(2)}`;
 
   const elTotalGen = document.getElementById('bal-total-general');
-  if (elTotalGen) elTotalGen
+  if (elTotalGen) elTotalGen.innerText = `$${totalGeneral.toFixed(2)}`;
+
+  actualizarDiferenciaCierre();
+}
+
+function actualizarDiferenciaCierre() {
+  const inputContado = document.getElementById('caja-contado-input');
+  const box = document.getElementById('box-diferencia-cierre');
+  const lbl = document.getElementById('lbl-diferencia-cierre');
+
+  if (!inputContado || !box || !lbl) return;
+
+  if (!inputContado.value) {
+    box.className = 'alert alert-secondary d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerText = 'Ingresa el monto contado';
+    return;
+  }
+
+  const elEsperado = document.getElementById('bal-efectivo-esperado');
+  const esperado = parseFloat(elEsperado ? elEsperado.innerText.replace('$', '') : 0) || 0;
+  const contado = parseFloat(inputContado.value) || 0;
+  const diff = contado - esperado;
+
+  if (Math.abs(diff) < 0.009) {
+    box.className = 'alert alert-success d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerHTML = '¡Caja perfectamente cuadrada! ($0.00)';
+  } else if (diff > 0) {
+    box.className = 'alert alert-warning d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerHTML = `Sobrante: +$${diff.toFixed(2)}`;
+  } else {
+    box.className = 'alert alert-danger d-flex justify-content-between align-items-center mb-3 py-2 px-3';
+    lbl.innerHTML = `Faltante: -$${Math.abs(diff).toFixed(2)}`;
+  }
+}
+
+async function registrarCierreCaja(efectivoBase, efectivoEsperado, efectivoContado) {
+  const client = obtenerSupabase();
+  if (!client) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  try {
+    const fechaHoy = obtenerFechaLocal();
+    const base = parseFloat(efectivoBase) || 0;
+    const esperado = parseFloat(efectivoEsperado) || 0;
+    const contado = parseFloat(efectivoContado) || 0;
+    const diferencia = contado - esperado;
+
+    const { error } = await client
+      .from('cierres')
+      .insert([
+        {
+          fecha: fechaHoy,
+          efectivo_base: base,
+          efectivo_esperado: esperado,
+          efectivo_contado: contado,
+          diferencia: diferencia
+        }
+      ]);
+
+    if (error) throw error;
+
+    alert('¡Cierre de caja guardado con éxito!');
+    await cargarDatosGlobales();
+
+  } catch (err) {
+    console.error('Error al registrar cierre de caja:', err);
+    alert('Error al registrar cierre de caja: ' + err.message);
+  }
+}
+
+function renderCierres() {
+  const contenedor = document.getElementById('lista-cierres-guardados');
+  if (!contenedor) return;
+
+  const cierres = window.cierres || [];
+
+  if (cierres.length === 0) {
+    contenedor.innerHTML = '<div class="text-muted small text-center py-3">No hay cierres registrados aún.</div>';
+    return;
+  }
+
+  contenedor.innerHTML = cierres.map(c => {
+    const esperado = parseFloat(c.efectivo_esperado) || 0;
+    const contado = parseFloat(c.efectivo_contado)
