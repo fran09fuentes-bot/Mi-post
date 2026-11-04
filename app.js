@@ -484,7 +484,7 @@ async function eliminarCierre(id) {
 }
 
 // ==========================================
-// MÓDULO: RESUMEN MENSUAL Y GRÁFICAS DE DÍAS
+// MÓDULO: RESUMEN MENSUAL Y GRÁFICAS (Con Recompra)
 // ==========================================
 
 function inicializarSelectoresResumen() {
@@ -605,6 +605,7 @@ function renderResumenMensual() {
 
   let totalVentas = 0;
   let gananciaBruta = 0;
+  let reinversionTotal = 0; // Acumulado para recompra de stock
 
   const ventasPorDiaSemana = [0, 0, 0, 0, 0, 0, 0];
   const nombresDias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -620,6 +621,7 @@ function renderResumenMensual() {
 
     totalVentas += monto;
     gananciaBruta += Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
+    reinversionTotal += Number(v.reinversion || v.costo || 0);
 
     ventasPorDiaSemana[diaSemana] += monto;
 
@@ -640,6 +642,9 @@ function renderResumenMensual() {
 
   const elGanancia = document.getElementById('resumen-ganancia-neta');
   if (elGanancia) elGanancia.innerText = `$${gananciaNeta.toFixed(2)}`;
+
+  const elReinversion = document.getElementById('resumen-reinversion');
+  if (elReinversion) elReinversion.innerText = `$${reinversionTotal.toFixed(2)}`;
 
   const elTrans = document.getElementById('resumen-transacciones');
   if (elTrans) elTrans.innerText = `${totalTransacciones}`;
