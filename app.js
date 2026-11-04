@@ -4,14 +4,16 @@ const SUPABASE_KEY = 'sb_publishable_gWOLb2P47i8qiQuSAnAldA_54neh6U7';
 
 let _supabase = null;
 
-if (window.supabase && typeof window.supabase.createClient === 'function') {
-  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-} else {
-  console.error("Librería de Supabase no encontrada");
+// Función segura para inicializar Supabase evitando que falle si el CDN tarda un milisegundo más
+function obtenerSupabase() {
+  if (_supabase) return _supabase;
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    window._supabase = _supabase;
+    window.supabaseClient = _supabase;
+  }
+  return _supabase;
 }
-
-window._supabase = _supabase;
-window.supabaseClient = _supabase;
 
 window.productos = [];
 window.ventas = [];
@@ -27,34 +29,39 @@ function obtenerFechaLocal() {
 
 // Cargar todos los datos desde Supabase y refrescar las vistas
 async function cargarDatosGlobales() {
-  if (!_supabase) return;
+  const client = obtenerSupabase();
+  if (!client) {
+    console.warn("Esperando a que cargue la librería de Supabase...");
+    setTimeout(cargarDatosGlobales, 300); // Reintentar en 300ms si el CDN va lento
+    return;
+  }
 
   try {
-    const { data: prods, error: errProds } = await _supabase.from('productos').select('*');
+    const { data: prods, error: errProds } = await client.from('productos').select('*');
     if (errProds) console.error("Error al cargar productos:", errProds);
     else window.productos = prods || [];
 
-    const { data: vts, error: errVts } = await _supabase.from('ventas').select('*');
+    const { data: vts, error: errVts } = await client.from('ventas').select('*');
     if (errVts) console.error("Error al cargar ventas:", errVts);
     else window.ventas = vts || [];
 
-    const { data: gsts, error: errGsts } = await _supabase.from('gastos').select('*');
+    const { data: gsts, error: errGsts } = await client.from('gastos').select('*');
     if (errGsts) console.error("Error al cargar gastos:", errGsts);
     else window.gastos = gsts || [];
 
-    const { data: crrs, error: errCrrs } = await _supabase.from('cierres').select('*').order('created_at', { ascending: false });
+    const { data: crrs, error: errCrrs } = await client.from('cierres').select('*').order('created_at', { ascending: false });
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar automáticamente la interfaz actual y la tabla de productos
+    // Refrescar automáticamente todas las vistas de la app
     if (typeof renderProductosVenta === 'function') renderProductosVenta();
     if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
 
-    // Compatibilidad para actualizar inventario y otras vistas al recibir los datos
+    // Compatibilidad para actualizar inventario y todas las demás pestañas
     if (typeof renderProductos === 'function') renderProductos();
     if (typeof renderInventario === 'function') renderInventario();
-    if (typeof renderGridProductos === 'function') renderGridProductos();
     if (typeof renderTablaProductos === 'function') renderTablaProductos();
+    if (typeof renderGridProductos === 'function') renderGridProductos();
     if (typeof calcularBalanceCaja === 'function') calcularBalanceCaja();
     if (typeof renderCierres === 'function') renderCierres();
     if (typeof renderHistorial === 'function') renderHistorial();
@@ -190,7 +197,8 @@ function buscarProductos(termino = '') {
 
 // Registrar Ventas
 async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efectivo', descuento = 0) {
-  if (!_supabase) {
+  const client = obtenerSupabase();
+  if (!client) {
     alert("Error: Supabase no está conectado.");
     return;
   }
@@ -214,7 +222,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
     const gananciaBruta = (precioUnitario - costoUnitario) * cantidad - descuento;
     const reinversion = costoUnitario * cantidad;
 
-    const { error: errVenta } = await _supabase
+    const { error: errVenta } = await client
       .from('ventas')
       .insert([
         {
@@ -240,7 +248,7 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
     if (errVenta) throw errVenta;
 
     if (prod.stock !== null && prod.stock !== undefined) {
-      await _supabase
+      await client
         .from('productos')
         .update({ stock: Math.max(0, prod.stock - cantidad) })
         .eq('id', prod.id);
@@ -257,20 +265,21 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
 
 // Eliminar Ventas
 async function eliminarVenta(id) {
-  if (!_supabase) return;
+  const client = obtenerSupabase();
+  if (!client) return;
 
   if (confirm('¿Deseas eliminar esta venta? El stock será devuelto al inventario.')) {
     try {
       const ventaAEliminar = (window.ventas || []).find(v => v.id === id);
 
-      const { error } = await _supabase.from('ventas').delete().eq('id', id);
+      const { error } = await client.from('ventas').delete().eq('id', id);
       if (error) throw error;
 
       if (ventaAEliminar && ventaAEliminar.producto_id) {
         const prod = (window.productos || []).find(p => p.id === ventaAEliminar.producto_id);
         if (prod && prod.stock !== null && prod.stock !== undefined) {
           const cantidadDevuelta = ventaAEliminar.cantidad || 1;
-          await _supabase
+          await client
             .from('productos')
             .update({ stock: prod.stock + cantidadDevuelta })
             .eq('id', prod.id);
@@ -375,7 +384,8 @@ function actualizarDiferenciaCierre() {
 }
 
 async function registrarCierreCaja(efectivoBase, efectivoEsperado, efectivoContado) {
-  if (!_supabase) {
+  const client = obtenerSupabase();
+  if (!client) {
     alert("Error: Supabase no está conectado.");
     return;
   }
@@ -387,7 +397,7 @@ async function registrarCierreCaja(efectivoBase, efectivoEsperado, efectivoConta
     const contado = parseFloat(efectivoContado) || 0;
     const diferencia = contado - esperado;
 
-    const { error } = await _supabase
+    const { error } = await client
       .from('cierres')
       .insert([
         {
@@ -405,4 +415,86 @@ async function registrarCierreCaja(efectivoBase, efectivoEsperado, efectivoConta
     await cargarDatosGlobales();
 
   } catch (err) {
-    console.error('Error al registrar cierre de caja:', err
+    console.error('Error al registrar cierre de caja:', err);
+    alert('Error al registrar cierre de caja: ' + err.message);
+  }
+}
+
+function renderCierres() {
+  const contenedor = document.getElementById('lista-cierres-guardados');
+  if (!contenedor) return;
+
+  const cierres = window.cierres || [];
+
+  if (cierres.length === 0) {
+    contenedor.innerHTML = '<div class="text-muted small text-center py-3">No hay cierres registrados aún.</div>';
+    return;
+  }
+
+  contenedor.innerHTML = cierres.map(c => {
+    const esperado = parseFloat(c.efectivo_esperado) || 0;
+    const contado = parseFloat(c.efectivo_contado) || 0;
+    const diff = c.diferencia !== undefined ? parseFloat(c.diferencia) : (contado - esperado);
+
+    let statusBadge = '<span class="badge bg-success">Cuadrado</span>';
+    if (diff > 0.009) statusBadge = `<span class="badge bg-warning text-dark">Sobrante (+$${diff.toFixed(2)})</span>`;
+    if (diff < -0.009) statusBadge = `<span class="badge bg-danger">Faltante (-$${Math.abs(diff).toFixed(2)})</span>`;
+
+    return `
+      <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center border mb-2">
+        <div>
+          <div class="fw-bold">${c.fecha || 'Sin fecha'} ${statusBadge}</div>
+          <small class="text-muted">Esperado: $${esperado.toFixed(2)} | Contado: $${contado.toFixed(2)}</small>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <span class="fw-bold fs-5">$${contado.toFixed(2)}</span>
+          ${c.id ? `<button class="btn btn-sm btn-outline-danger" onclick="eliminarCierre('${c.id}')"><i class="bi bi-trash"></i></button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function eliminarCierre(id) {
+  const client = obtenerSupabase();
+  if (!client) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  if (confirm('¿Estás seguro de que deseas eliminar este registro de cierre de caja?')) {
+    try {
+      const { error } = await client
+        .from('cierres')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      alert('Cierre de caja eliminado con éxito.');
+      await cargarDatosGlobales();
+
+    } catch (err) {
+      console.error('Error al eliminar cierre:', err);
+      alert('Error al eliminar cierre: ' + err.message);
+    }
+  }
+}
+
+// Registro global de funciones
+window.obtenerFechaLocal = obtenerFechaLocal;
+window.cargarDatosGlobales = cargarDatosGlobales;
+window.renderProductosVenta = renderProductosVenta;
+window.actualizarMetricasUI = actualizarMetricasUI;
+window.buscarProductos = buscarProductos;
+window.registrarVenta = registrarVenta;
+window.eliminarVenta = eliminarVenta;
+window.calcularBalanceCaja = calcularBalanceCaja;
+window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
+window.registrarCierreCaja = registrarCierreCaja;
+window.renderCierres = renderCierres;
+window.eliminarCierre = eliminarCierre;
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatosGlobales();
+});
