@@ -95,6 +95,8 @@ function renderProductosVenta(filtro = '') {
     card.onclick = () => {
       if (typeof seleccionarProducto === 'function') {
         seleccionarProducto(p);
+      } else if (typeof agregarAlCarrito === 'function') {
+        agregarAlCarrito(p);
       } else {
         window.productoSeleccionadoActual = p;
         const elNombre = document.getElementById('prod-seleccionado-nombre') || document.getElementById('cart-item-name');
@@ -195,7 +197,7 @@ function buscarProductos(termino = '') {
   );
 }
 
-// Registrar Ventas
+// Registrar Ventas (Individual)
 async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efectivo', descuento = 0) {
   const client = obtenerSupabase();
   if (!client) {
@@ -260,6 +262,86 @@ async function registrarVenta(productoSeleccionado, cantidad, metodoPago = 'Efec
   } catch (error) {
     console.error('Error al registrar venta:', error);
     alert('Error al registrar venta: ' + error.message);
+  }
+}
+
+// Registrar Venta con Múltiples Productos (Carrito)
+async function registrarVentaMultiple(itemsCarrito, metodoPago = 'Efectivo', descuentoGlobal = 0) {
+  const client = obtenerSupabase();
+  if (!client) {
+    alert("Error: Supabase no está conectado.");
+    return false;
+  }
+
+  if (!itemsCarrito || itemsCarrito.length === 0) {
+    alert("El carrito está vacío.");
+    return false;
+  }
+
+  try {
+    const subtotalGeneral = itemsCarrito.reduce((acc, item) => acc + (Number(item.precio || 0) * Number(item.cantidad || 1)), 0);
+    const descGlobalVal = Math.max(0, Number(descuentoGlobal) || 0);
+
+    for (const item of itemsCarrito) {
+      const cant = Number(item.cantidad) || 1;
+      const prec = Number(item.precio) || 0;
+      const cost = Number(item.costo) || 0;
+      
+      const subtotalItem = prec * cant;
+      const descuentoItem = subtotalGeneral > 0 ? (subtotalItem / subtotalGeneral) * descGlobalVal : 0;
+      const totalVentaItem = Math.max(0, subtotalItem - descuentoItem);
+      
+      const gananciaBrutaItem = ((prec - cost) * cant) - descuentoItem;
+      const reinversionItem = cost * cant;
+
+      const datosVenta = {
+        cliente: 'Cliente General',
+        producto: item.nombre || 'Producto',
+        producto_id: item.id || null,
+        cantidad: cant,
+        precio: prec,
+        descuento: descuentoItem,
+        total: totalVentaItem,
+        ingreso: totalVentaItem,
+        gananciaBruta: gananciaBrutaItem,
+        ganancia_bruta: gananciaBrutaItem,
+        gananciaNeta: gananciaBrutaItem,
+        ganancia_neta: gananciaBrutaItem,
+        reinversion: reinversionItem,
+        costo: reinversionItem,
+        metodo_pago: metodoPago || 'Efectivo',
+        fecha: new Date().toISOString()
+      };
+
+      const { error: errVenta } = await client
+        .from('ventas')
+        .insert([datosVenta]);
+
+      if (errVenta) {
+        console.error("Error al insertar venta en Supabase:", errVenta);
+        throw errVenta;
+      }
+
+      if (item.id) {
+        const prodOriginal = (window.productos || []).find(p => p.id === item.id);
+        if (prodOriginal && prodOriginal.stock !== null && prodOriginal.stock !== undefined) {
+          const nuevoStock = Math.max(0, Number(prodOriginal.stock) - cant);
+          await client
+            .from('productos')
+            .update({ stock: nuevoStock })
+            .eq('id', item.id);
+        }
+      }
+    }
+
+    alert('¡Venta registrada con éxito!');
+    await cargarDatosGlobales();
+    return true;
+
+  } catch (error) {
+    console.error('Error al registrar venta múltiple:', error);
+    alert('Error al registrar la venta: ' + (error.message || 'Verifica la consola para más información.'));
+    return false;
   }
 }
 
@@ -682,6 +764,7 @@ window.renderProductosVenta = renderProductosVenta;
 window.actualizarMetricasUI = actualizarMetricasUI;
 window.buscarProductos = buscarProductos;
 window.registrarVenta = registrarVenta;
+window.registrarVentaMultiple = registrarVentaMultiple;
 window.eliminarVenta = eliminarVenta;
 window.calcularBalanceCaja = calcularBalanceCaja;
 window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
