@@ -46,17 +46,20 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar automáticamente la interfaz actual
-    if (typeof renderProductosVenta === 'function') renderProductosVenta();
-    if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
+    // Refrescar automáticamente la interfaz actual y la tabla de productos
+    renderProductosVenta();
+    actualizarMetricasUI();
+
+    // Compatibilidad para actualizar inventario y otras vistas al recibir los datos
     if (typeof renderProductos === 'function') renderProductos();
+    if (typeof renderInventario === 'function') renderInventario();
+    if (typeof renderGridProductos === 'function') renderGridProductos();
     if (typeof renderTablaProductos === 'function') renderTablaProductos();
     if (typeof calcularBalanceCaja === 'function') calcularBalanceCaja();
     if (typeof renderCierres === 'function') renderCierres();
     if (typeof renderHistorial === 'function') renderHistorial();
     if (typeof renderGastos === 'function') renderGastos();
     if (typeof renderListaGastos === 'function') renderListaGastos();
-    if (typeof renderResumenMensual === 'function') renderResumenMensual();
 
   } catch (err) {
     console.error("Error en cargarDatosGlobales:", err);
@@ -158,19 +161,19 @@ function actualizarMetricasUI() {
   const elVentasHoy = document.getElementById('metric-ventas-hoy') || document.getElementById('total-ventas-hoy');
   if (elVentasHoy) elVentasHoy.textContent = `$${ventasHoy.toFixed(2)}`;
 
-  const elGananciaNeta = document.getElementById('metric-ganancia-neta') || document.getElementById('total-ganancia-neta');
+  const elGananciaNeta = document.getElementById('metric-ganancia-neta');
   if (elGananciaNeta) elGananciaNeta.textContent = `$${gananciaNetaMes.toFixed(2)}`;
 
-  const elReinversion = document.getElementById('metric-reinversion') || document.getElementById('total-reinversion');
+  const elReinversion = document.getElementById('metric-reinversion');
   if (elReinversion) elReinversion.textContent = `$${reinversionMes.toFixed(2)}`;
 
-  const elVentasAcum = document.getElementById('metric-ventas-acum') || document.getElementById('total-ventas-brutas');
+  const elVentasAcum = document.getElementById('metric-ventas-acum');
   if (elVentasAcum) elVentasAcum.textContent = `$${totalVentasAcumuladas.toFixed(2)}`;
 
-  const elGastosFijos = document.getElementById('metric-gastos-fijos') || document.getElementById('total-gastos');
+  const elGastosFijos = document.getElementById('metric-gastos-fijos');
   if (elGastosFijos) elGastosFijos.textContent = `$${gastosMes.toFixed(2)}`;
 
-  const elVentasReg = document.getElementById('metric-ventas-reg') || document.getElementById('cant-ventas');
+  const elVentasReg = document.getElementById('metric-ventas-reg');
   if (elVentasReg) elVentasReg.textContent = `${ventasRegCount}`;
 }
 
@@ -459,21 +462,27 @@ async function eliminarCierre(id) {
       alert('Cierre de caja eliminado con éxito.');
       await cargarDatosGlobales();
 
-    } catch (err) {
+    } exact (err) {
       console.error('Error al eliminar cierre:', err);
       alert('Error al eliminar cierre: ' + err.message);
     }
   }
 }
 
-// ==========================================
-// MÓDULO NUEVO: RESUMEN MENSUAL Y GRÁFICAS
-// ==========================================
+// Registro global de funciones
+window.obtenerFechaLocal = obtenerFechaLocal;
+window.cargarDatosGlobales = cargarDatosGlobales;
+window.renderProductosVenta = renderProductosVenta;
+window.actualizarMetricasUI = actualizarMetricasUI;
+window.buscarProductos = buscarProductos;
+window.registrarVenta = registrarVenta;
+window.eliminarVenta = eliminarVenta;
+window.calcularBalanceCaja = calcularBalanceCaja;
+window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
+window.registrarCierreCaja = registrarCierreCaja;
+window.renderCierres = renderCierres;
+window.eliminarCierre = eliminarCierre;
 
-function inicializarSelectoresResumen() {
-  const selectMes = document.getElementById('resumen-select-mes');
-  const selectAnio = document.getElementById('resumen-select-anio');
-
-  if (!selectMes || !selectAnio) return;
-
-  const hoy = new Date();
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatosGlobales();
+});
