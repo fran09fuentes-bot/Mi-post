@@ -4,7 +4,7 @@ const SUPABASE_KEY = 'sb_publishable_gWOLb2P47i8qiQuSAnAldA_54neh6U7';
 
 let _supabase = null;
 
-// Función segura de inicialización para evitar que falle si el CDN tarda un instante
+// Función segura de inicialización para evitar fallos de velocidad del CDN
 function obtenerSupabase() {
   if (_supabase) return _supabase;
   if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -27,7 +27,7 @@ function obtenerFechaLocal() {
   return new Date(hoy.getTime() - offset).toISOString().split('T')[0];
 }
 
-// Cargar todos los datos desde Supabase y refrescar TODAS las vistas de la app
+// Cargar todos los datos desde Supabase y refrescar de forma segura cualquier pestaña
 async function cargarDatosGlobales() {
   const client = obtenerSupabase();
   if (!client) {
@@ -52,12 +52,11 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar automáticamente TODAS las vistas e interfaces de cualquier pestaña
+    // Ejecutar vistas de forma segura (solo si existen en la página actual)
     if (typeof renderProductosVenta === 'function') renderProductosVenta();
     if (typeof renderGridProductos === 'function') renderGridProductos();
     if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
 
-    // Sincronización para inventario, productos, gastos, caja e historial
     if (typeof renderProductos === 'function') renderProductos();
     if (typeof renderInventario === 'function') renderInventario();
     if (typeof renderTablaProductos === 'function') renderTablaProductos();
@@ -73,7 +72,7 @@ async function cargarDatosGlobales() {
   }
 }
 
-// Dibujar productos en el selector de Vender (index.html)
+// Dibujar productos en el selector de Vender
 function renderProductosVenta(filtro = '') {
   const contenedor = document.getElementById('grid-productos-venta') || 
                      document.getElementById('grid-productos') || 
@@ -434,4 +433,263 @@ function renderCierres() {
 
   contenedor.innerHTML = cierres.map(c => {
     const esperado = parseFloat(c.efectivo_esperado) || 0;
-    const contado = parseFloat(c.efectivo_contado)
+    const contado = parseFloat(c.efectivo_contado) || 0;
+    const diff = c.diferencia !== undefined ? parseFloat(c.diferencia) : (contado - esperado);
+
+    let statusBadge = '<span class="badge bg-success">Cuadrado</span>';
+    if (diff > 0.009) statusBadge = `<span class="badge bg-warning text-dark">Sobrante (+$${diff.toFixed(2)})</span>`;
+    if (diff < -0.009) statusBadge = `<span class="badge bg-danger">Faltante (-$${Math.abs(diff).toFixed(2)})</span>`;
+
+    return `
+      <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center border mb-2">
+        <div>
+          <div class="fw-bold">${c.fecha || 'Sin fecha'} ${statusBadge}</div>
+          <small class="text-muted">Esperado: $${esperado.toFixed(2)} | Contado: $${contado.toFixed(2)}</small>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <span class="fw-bold fs-5">$${contado.toFixed(2)}</span>
+          ${c.id ? `<button class="btn btn-sm btn-outline-danger" onclick="eliminarCierre('${c.id}')"><i class="bi bi-trash"></i></button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function eliminarCierre(id) {
+  const client = obtenerSupabase();
+  if (!client) {
+    alert("Error: Supabase no está conectado.");
+    return;
+  }
+
+  if (confirm('¿Estás seguro de que deseas eliminar este registro de cierre de caja?')) {
+    try {
+      const { error } = await client
+        .from('cierres')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      alert('Cierre de caja eliminado con éxito.');
+      await cargarDatosGlobales();
+
+    } catch (err) {
+      console.error('Error al eliminar cierre:', err);
+      alert('Error al eliminar cierre: ' + err.message);
+    }
+  }
+}
+
+// ==========================================
+// MÓDULO: RESUMEN MENSUAL Y GRÁFICAS
+// ==========================================
+
+function inicializarSelectoresResumen() {
+  const selectMes = document.getElementById('resumen-select-mes');
+  const selectAnio = document.getElementById('resumen-select-anio');
+
+  if (!selectMes || !selectAnio) return;
+
+  const hoy = new Date();
+  const anioActual = hoy.getFullYear();
+
+  if (selectAnio.options.length === 0) {
+    for (let a = anioActual; a >= anioActual - 3; a--) {
+      const opt = document.createElement('option');
+      opt.value = a;
+      opt.textContent = a;
+      selectAnio.appendChild(opt);
+    }
+  }
+
+  if (!selectMes.value || selectMes.value === "") {
+    selectMes.value = hoy.getMonth();
+  }
+  if (!selectAnio.value || selectAnio.value === "") {
+    selectAnio.value = anioActual;
+  }
+}
+
+let miGraficoDias = null;
+
+function renderGraficaDiasSemana(labels, datos) {
+  const canvas = document.getElementById('chart-dias-semana');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+
+  const maxVenta = Math.max(...datos);
+  const idxMax = datos.indexOf(maxVenta);
+  const labelMejor = document.getElementById('label-mejor-dia');
+
+  if (labelMejor) {
+    if (maxVenta > 0) {
+      labelMejor.innerText = `Top: ${labels[idxMax]} ($${maxVenta.toFixed(2)})`;
+    } else {
+      labelMejor.innerText = 'Sin registros';
+    }
+  }
+
+  if (miGraficoDias) {
+    miGraficoDias.destroy();
+  }
+
+  const minVenta = Math.min(...datos);
+  const backgroundColors = datos.map(val => {
+    if (val === maxVenta && maxVenta > 0) return '#10b981';
+    if (val === minVenta && maxVenta > 0) return '#f87171';
+    return '#6366f1';
+  });
+
+  miGraficoDias = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Ventas ($)',
+        data: datos,
+        backgroundColor: backgroundColors,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `Total: $${context.raw.toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: { size: 9 },
+            callback: (value) => `$${value}`
+          },
+          grid: { color: '#f3f4f6' }
+        },
+        x: {
+          ticks: { font: { size: 10, weight: 'bold' } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderResumenMensual() {
+  inicializarSelectoresResumen();
+
+  const selectMes = document.getElementById('resumen-select-mes');
+  const selectAnio = document.getElementById('resumen-select-anio');
+  if (!selectMes || !selectAnio) return;
+
+  const hoy = new Date();
+  const mesSel = selectMes.value !== "" ? parseInt(selectMes.value, 10) : hoy.getMonth();
+  const anioSel = selectAnio.value !== "" ? parseInt(selectAnio.value, 10) : hoy.getFullYear();
+
+  const ventasMes = (window.ventas || []).filter(v => {
+    const f = new Date(v.fecha || v.created_at || Date.now());
+    return f.getMonth() === mesSel && f.getFullYear() === anioSel;
+  });
+
+  const gastosMes = (window.gastos || []).filter(g => {
+    const f = new Date(g.fecha || g.created_at || Date.now());
+    return f.getMonth() === mesSel && f.getFullYear() === anioSel;
+  });
+
+  let totalVentas = 0;
+  let gananciaBruta = 0;
+  let reinversionTotal = 0;
+
+  const ventasPorDiaSemana = [0, 0, 0, 0, 0, 0, 0];
+  const nombresDias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+  const acumuladoProductos = {};
+
+  ventasMes.forEach(v => {
+    const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
+    const diaSemana = fechaVenta.getDay();
+    const monto = Number(v.total || v.ingreso || 0);
+    const cant = Number(v.cantidad || 1);
+    const nombreProd = v.producto || 'Producto';
+
+    totalVentas += monto;
+    gananciaBruta += Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
+    reinversionTotal += Number(v.reinversion || v.costo || 0);
+
+    ventasPorDiaSemana[diaSemana] += monto;
+
+    if (!acumuladoProductos[nombreProd]) {
+      acumuladoProductos[nombreProd] = { cantidad: 0, total: 0 };
+    }
+    acumuladoProductos[nombreProd].cantidad += cant;
+    acumuladoProductos[nombreProd].total += monto;
+  });
+
+  const totalGastos = gastosMes.reduce((acc, g) => acc + Number(g.monto || g.precio || 0), 0);
+  const gananciaNeta = gananciaBruta - totalGastos;
+  const totalTransacciones = ventasMes.length;
+  const ticketPromedio = totalTransacciones > 0 ? (totalVentas / totalTransacciones) : 0;
+
+  const elTotal = document.getElementById('resumen-total-ventas');
+  if (elTotal) elTotal.innerText = `$${totalVentas.toFixed(2)}`;
+
+  const elGanancia = document.getElementById('resumen-ganancia-neta');
+  if (elGanancia) elGanancia.innerText = `$${gananciaNeta.toFixed(2)}`;
+
+  const elReinversion = document.getElementById('resumen-reinversion');
+  if (elReinversion) elReinversion.innerText = `$${reinversionTotal.toFixed(2)}`;
+
+  const elTrans = document.getElementById('resumen-transacciones');
+  if (elTrans) elTrans.innerText = `${totalTransacciones}`;
+
+  const elTicket = document.getElementById('resumen-ticket-promedio');
+  if (elTicket) elTicket.innerText = `$${ticketPromedio.toFixed(2)}`;
+
+  renderGraficaDiasSemana(nombresDias, ventasPorDiaSemana);
+
+  const contenedorTop = document.getElementById('resumen-tabla-top-productos');
+  if (contenedorTop) {
+    const topLista = Object.entries(acumuladoProductos)
+      .map(([nombre, datos]) => ({ nombre, ...datos }))
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5);
+
+    if (topLista.length === 0) {
+      contenedorTop.innerHTML = `<tr><td colspan="3" class="text-center py-2 text-gray-400 text-[11px]">Sin ventas registradas en este mes.</td></tr>`;
+    } else {
+      contenedorTop.innerHTML = topLista.map(p => `
+        <tr class="border-b last:border-0 hover:bg-gray-50">
+          <td class="py-1.5 px-2 font-bold text-slate-800 text-left truncate">${p.nombre}</td>
+          <td class="py-1.5 px-2 text-center font-bold text-slate-600">${p.cantidad} u.</td>
+          <td class="py-1.5 px-2 text-right font-extrabold text-emerald-600">$${p.total.toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+  }
+}
+
+// Registro global de funciones
+window.obtenerFechaLocal = obtenerFechaLocal;
+window.cargarDatosGlobales = cargarDatosGlobales;
+window.renderProductosVenta = renderProductosVenta;
+window.actualizarMetricasUI = actualizarMetricasUI;
+window.buscarProductos = buscarProductos;
+window.registrarVenta = registrarVenta;
+window.eliminarVenta = eliminarVenta;
+window.calcularBalanceCaja = calcularBalanceCaja;
+window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
+window.registrarCierreCaja = registrarCierreCaja;
+window.renderCierres = renderCierres;
+window.eliminarCierre = eliminarCierre;
+window.renderResumenMensual = renderResumenMensual;
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatosGlobales();
+});
