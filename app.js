@@ -47,8 +47,8 @@ async function cargarDatosGlobales() {
     else window.cierres = crrs || [];
 
     // Refrescar automáticamente la interfaz actual y la tabla de productos
-    renderProductosVenta();
-    actualizarMetricasUI();
+    if (typeof renderProductosVenta === 'function') renderProductosVenta();
+    if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
 
     // Compatibilidad para actualizar inventario y otras vistas al recibir los datos
     if (typeof renderProductos === 'function') renderProductos();
@@ -60,6 +60,7 @@ async function cargarDatosGlobales() {
     if (typeof renderHistorial === 'function') renderHistorial();
     if (typeof renderGastos === 'function') renderGastos();
     if (typeof renderListaGastos === 'function') renderListaGastos();
+    if (typeof renderResumenMensual === 'function') renderResumenMensual();
 
   } catch (err) {
     console.error("Error en cargarDatosGlobales:", err);
@@ -404,85 +405,4 @@ async function registrarCierreCaja(efectivoBase, efectivoEsperado, efectivoConta
     await cargarDatosGlobales();
 
   } catch (err) {
-    console.error('Error al registrar cierre de caja:', err);
-    alert('Error al registrar cierre de caja: ' + err.message);
-  }
-}
-
-function renderCierres() {
-  const contenedor = document.getElementById('lista-cierres-guardados');
-  if (!contenedor) return;
-
-  const cierres = window.cierres || [];
-
-  if (cierres.length === 0) {
-    contenedor.innerHTML = '<div class="text-muted small text-center py-3">No hay cierres registrados aún.</div>';
-    return;
-  }
-
-  contenedor.innerHTML = cierres.map(c => {
-    const esperado = parseFloat(c.efectivo_esperado) || 0;
-    const contado = parseFloat(c.efectivo_contado) || 0;
-    const diff = c.diferencia !== undefined ? parseFloat(c.diferencia) : (contado - esperado);
-
-    let statusBadge = '<span class="badge bg-success">Cuadrado</span>';
-    if (diff > 0.009) statusBadge = `<span class="badge bg-warning text-dark">Sobrante (+$${diff.toFixed(2)})</span>`;
-    if (diff < -0.009) statusBadge = `<span class="badge bg-danger">Faltante (-$${Math.abs(diff).toFixed(2)})</span>`;
-
-    return `
-      <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center border mb-2">
-        <div>
-          <div class="fw-bold">${c.fecha || 'Sin fecha'} ${statusBadge}</div>
-          <small class="text-muted">Esperado: $${esperado.toFixed(2)} | Contado: $${contado.toFixed(2)}</small>
-        </div>
-        <div class="d-flex align-items-center gap-3">
-          <span class="fw-bold fs-5">$${contado.toFixed(2)}</span>
-          ${c.id ? `<button class="btn btn-sm btn-outline-danger" onclick="eliminarCierre('${c.id}')"><i class="bi bi-trash"></i></button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-async function eliminarCierre(id) {
-  if (!_supabase) {
-    alert("Error: Supabase no está conectado.");
-    return;
-  }
-
-  if (confirm('¿Estás seguro de que deseas eliminar este registro de cierre de caja?')) {
-    try {
-      const { error } = await _supabase
-        .from('cierres')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      alert('Cierre de caja eliminado con éxito.');
-      await cargarDatosGlobales();
-
-    } exact (err) {
-      console.error('Error al eliminar cierre:', err);
-      alert('Error al eliminar cierre: ' + err.message);
-    }
-  }
-}
-
-// Registro global de funciones
-window.obtenerFechaLocal = obtenerFechaLocal;
-window.cargarDatosGlobales = cargarDatosGlobales;
-window.renderProductosVenta = renderProductosVenta;
-window.actualizarMetricasUI = actualizarMetricasUI;
-window.buscarProductos = buscarProductos;
-window.registrarVenta = registrarVenta;
-window.eliminarVenta = eliminarVenta;
-window.calcularBalanceCaja = calcularBalanceCaja;
-window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
-window.registrarCierreCaja = registrarCierreCaja;
-window.renderCierres = renderCierres;
-window.eliminarCierre = eliminarCierre;
-
-document.addEventListener('DOMContentLoaded', () => {
-  cargarDatosGlobales();
-});
+    console.error('Error al registrar cierre de caja:', err
