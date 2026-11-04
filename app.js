@@ -484,7 +484,7 @@ async function eliminarCierre(id) {
 }
 
 // ==========================================
-// MÓDULO: RESUMEN MENSUAL Y GRÁFICAS (Con Recompra)
+// MÓDULO: RESUMEN MENSUAL Y GRÁFICAS (Robusto)
 // ==========================================
 
 function inicializarSelectoresResumen() {
@@ -494,8 +494,9 @@ function inicializarSelectoresResumen() {
   if (!selectMes || !selectAnio) return;
 
   const hoy = new Date();
-  const anioActual = hoy.getFullYear();
+  const anioActual = hoy.getFullYear(); // 2026
 
+  // Si el selector de año está vacío, llenarlo con los últimos años
   if (selectAnio.options.length === 0) {
     for (let a = anioActual; a >= anioActual - 3; a--) {
       const opt = document.createElement('option');
@@ -505,10 +506,14 @@ function inicializarSelectoresResumen() {
     }
   }
 
-  if (!selectMes.dataset.initialized) {
-    selectMes.value = hoy.getMonth();
+  // Establecer por defecto el año actual si no hay selección
+  if (!selectAnio.value || selectAnio.value === "") {
     selectAnio.value = anioActual;
-    selectMes.dataset.initialized = "true";
+  }
+
+  // Establecer por defecto el mes actual si no hay selección
+  if (!selectMes.value || selectMes.value === "") {
+    selectMes.value = hoy.getMonth();
   }
 }
 
@@ -590,8 +595,8 @@ function renderResumenMensual() {
   const selectAnio = document.getElementById('resumen-select-anio');
 
   const hoy = new Date();
-  const mesSel = selectMes ? parseInt(selectMes.value, 10) : hoy.getMonth();
-  const anioSel = selectAnio ? parseInt(selectAnio.value, 10) : hoy.getFullYear();
+  const mesSel = selectMes && selectMes.value !== "" ? parseInt(selectMes.value, 10) : hoy.getMonth();
+  const anioSel = selectAnio && selectAnio.value !== "" ? parseInt(selectAnio.value, 10) : hoy.getFullYear();
 
   const ventasMes = (window.ventas || []).filter(v => {
     const f = new Date(v.fecha || v.created_at || Date.now());
