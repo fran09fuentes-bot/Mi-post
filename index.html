@@ -176,11 +176,11 @@
       </div>
     </div>
 
-    <!-- SELECCIONAR PRODUCTO Y VENDER -->
+    <!-- CATÁLOGO Y CARRITO MULTI-ÍTEM -->
     <div class="bg-white p-4 rounded-2xl shadow-sm border space-y-3">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
         <h3 class="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-          <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Producto
+          <i class="fa-solid fa-bolt text-amber-500"></i> Seleccionar Productos (Catálogo)
         </h3>
         <div class="relative w-full sm:w-48">
           <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -194,64 +194,69 @@
         </div>
       </div>
 
-      <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1"></div>
+      <!-- Cuadrícula de productos -->
+      <div id="grid-productos" class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1"></div>
 
+      <!-- CARRITO DE COMPRAS (ÍTEMS SELECCIONADOS) -->
       <div class="p-3 bg-gray-50 rounded-xl border space-y-2.5">
-        <div class="flex justify-between items-center text-xs">
-          <span class="text-gray-500">Seleccionado:</span>
-          <span id="label-producto-nombre" class="font-bold text-slate-900">Ninguno</span>
+        <div class="flex justify-between items-center text-xs border-b pb-1.5">
+          <span class="font-bold text-slate-800"><i class="fa-solid fa-cart-shopping text-emerald-600"></i> Carrito de Venta</span>
+          <span id="label-cantidad-items" class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">0 ítems</span>
         </div>
-        <div class="flex justify-between items-center text-xs pt-1 border-t">
-          <span class="text-gray-500 font-medium">Metodo de Pago:</span>
+
+        <!-- Lista de productos añadidos -->
+        <div id="lista-carrito" class="max-h-40 overflow-y-auto space-y-1.5 divide-y divide-gray-200">
+          <p class="text-xs text-gray-400 text-center py-3">El carrito está vacío. Haz clic en los productos para agregarlos.</p>
+        </div>
+
+        <!-- Método de Pago -->
+        <div class="flex justify-between items-center text-xs pt-2 border-t">
+          <span class="text-gray-500 font-medium">Método de Pago:</span>
           <select id="select-metodo-pago" class="border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white">
             <option value="Efectivo">Efectivo</option>
             <option value="Transferencia">Transferencia</option>
             <option value="Tarjeta">Tarjeta</option>
           </select>
         </div>
+
+        <!-- Descuento General -->
         <div class="flex justify-between items-center text-xs pt-1 border-t">
-          <span class="text-gray-500 font-medium">Descuento ($):</span>
+          <span class="text-gray-500 font-medium">Descuento Global ($):</span>
           <input 
             type="number" 
             id="input-descuento" 
             placeholder="0.00" 
             min="0" 
             step="0.01"
-            oninput="actualizarResumenSeleccion()"
+            oninput="actualizarCarritoUI()"
             class="w-20 text-right border rounded-lg px-2 py-1 text-xs font-bold text-slate-800 outline-none bg-white focus:border-emerald-500"
           />
         </div>
+
+        <!-- Total General del Carrito -->
         <div class="flex justify-between items-center pt-2 border-t">
-          <div class="flex items-center gap-2">
-            <button onclick="cambiarCantidad(-1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">-</button>
-            <span id="label-cantidad" class="font-bold text-xs px-2">1</span>
-            <button onclick="cambiarCantidad(1)" class="w-8 h-8 rounded-lg bg-gray-200 font-bold text-slate-700 active:scale-95 text-xs">+</button>
-          </div>
-          <div class="text-right">
-            <p class="text-[10px] text-gray-400">Total</p>
-            <p id="label-total" class="text-sm font-extrabold text-emerald-600">$0.00</p>
-          </div>
+          <span class="text-xs font-bold text-slate-700">Total a Pagar:</span>
+          <span id="label-total-carrito" class="text-sm font-extrabold text-emerald-600">$0.00</span>
         </div>
       </div>
 
-      <button onclick="confirmarVenta()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-2">
-        <i class="fa-solid fa-circle-check"></i> Registrar Venta
+      <button onclick="confirmarVentaMulti()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-2">
+        <i class="fa-solid fa-circle-check"></i> Registrar Venta Completa
       </button>
     </div>
   </main>
 
   <script src="app.js"></script>
   <script>
-    let productoSeleccionado = null;
-    let cantidadSeleccionada = 1;
+    // Carrito de compras local
+    let carrito = [];
 
     function renderGridProductos() {
-      const grid = document.getElementById('grid-productos') || document.getElementById('grid-productos-venta');
+      const grid = document.getElementById('grid-productos');
       if (!grid) return;
       grid.innerHTML = '';
 
       let lista = window.productos || [];
-
       const inputBusqueda = document.getElementById('input-buscar-producto');
       const termino = inputBusqueda ? inputBusqueda.value.trim().toLowerCase() : '';
 
@@ -260,101 +265,124 @@
       }
 
       if (lista.length === 0) {
-        grid.innerHTML = `<p class="col-span-2 text-xs text-gray-400 text-center py-4">
-          ${termino !== '' ? `No se encontraron productos para "${termino}".` : 'No hay productos disponibles.'}
-        </p>`;
+        grid.innerHTML = `<p class="col-span-2 text-xs text-gray-400 text-center py-4">No hay productos disponibles.</p>`;
         return;
       }
 
       lista.forEach(p => {
         const card = document.createElement('div');
-        const esSeleccionado = productoSeleccionado && productoSeleccionado.id === p.id;
         const stock = p.stock !== null && p.stock !== undefined ? p.stock : 'N/A';
         const nombreProd = p.nombre || p.producto || 'Producto';
 
-        let badgeStock = `<span class="text-[10px] text-gray-400">Stock: ${stock}</span>`;
-        if (typeof stock === 'number' && stock <= 0) {
-          badgeStock = `<span class="text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Agotado</span>`;
-        } else if (typeof stock === 'number' && stock <= 3) {
-          badgeStock = `<span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Quedan ${stock}</span>`;
-        }
-        
-        card.className = `p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-          esSeleccionado ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
-        }`;
+        card.className = "p-2.5 rounded-xl border text-left cursor-pointer transition-all border-gray-200 bg-white hover:border-emerald-500 hover:shadow-sm";
         
         card.onclick = () => {
-          seleccionarProducto(p);
+          agregarAlCarrito(p);
         };
 
         card.innerHTML = `
           <p class="font-bold text-xs text-slate-800 truncate">${nombreProd}</p>
           <div class="flex justify-between items-end mt-1">
             <p class="text-emerald-600 font-extrabold text-xs">$${Number(p.precio || 0).toFixed(2)}</p>
-            ${badgeStock}
+            <span class="text-[10px] text-gray-400">Stock: ${stock}</span>
           </div>
         `;
         grid.appendChild(card);
       });
     }
 
-    function seleccionarProducto(p) {
-      productoSeleccionado = p;
-      cantidadSeleccionada = 1;
-      const inputDesc = document.getElementById('input-descuento');
-      if (inputDesc) inputDesc.value = '';
-      actualizarResumenSeleccion();
-      renderGridProductos();
-    }
-
-    function cambiarCantidad(delta) {
-      if (!productoSeleccionado) return;
-      const nuevoValor = cantidadSeleccionada + delta;
-      if (nuevoValor >= 1) {
-        cantidadSeleccionada = nuevoValor;
-        actualizarResumenSeleccion();
+    function agregarAlCarrito(producto) {
+      const existente = carrito.find(item => item.id === producto.id);
+      if (existente) {
+        existente.cantidad += 1;
+      } else {
+        carrito.push({
+          id: producto.id,
+          nombre: producto.nombre || producto.producto,
+          precio: Number(producto.precio || 0),
+          costo: Number(producto.costo || 0),
+          cantidad: 1,
+          stock: producto.stock
+        });
       }
+      actualizarCarritoUI();
     }
 
-    function actualizarResumenSeleccion() {
-      const lblNombre = document.getElementById('label-producto-nombre');
-      const lblCant = document.getElementById('label-cantidad');
-      const lblTotal = document.getElementById('label-total');
+    function cambiarCantidadItem(id, delta) {
+      const item = carrito.find(i => i.id === id);
+      if (!item) return;
+      item.cantidad += delta;
+      if (item.cantidad <= 0) {
+        carrito = carrito.filter(i => i.id !== id);
+      }
+      actualizarCarritoUI();
+    }
+
+    function eliminarItemCarrito(id) {
+      carrito = carrito.filter(i => i.id !== id);
+      actualizarCarritoUI();
+    }
+
+    function actualizarCarritoUI() {
+      const contenedorLista = document.getElementById('lista-carrito');
+      const lblCantidadItems = document.getElementById('label-cantidad-items');
+      const lblTotal = document.getElementById('label-total-carrito');
       const inputDesc = document.getElementById('input-descuento');
+
+      if (!contenedorLista) return;
+
+      lblCantidadItems.textContent = `${carrito.reduce((acc, i) => acc + i.cantidad, 0)} ítems`;
+
+      if (carrito.length === 0) {
+        contenedorLista.innerHTML = `<p class="text-xs text-gray-400 text-center py-3">El carrito está vacío. Haz clic en los productos para agregarlos.</p>`;
+        lblTotal.textContent = '$0.00';
+        return;
+      }
+
+      let subtotalGeneral = 0;
+      contenedorLista.innerHTML = carrito.map(item => {
+        const totalItem = item.precio * item.cantidad;
+        subtotalGeneral += totalItem;
+        return `
+          <div class="py-2 flex justify-between items-center text-xs">
+            <div class="truncate pr-2">
+              <p class="font-bold text-slate-800 truncate">${item.nombre}</p>
+              <p class="text-[10px] text-emerald-600 font-extrabold">$${item.precio.toFixed(2)} c/u</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="cambiarCantidadItem('${item.id}', -1)" class="w-6 h-6 rounded bg-gray-200 font-bold text-slate-700">-</button>
+              <span class="font-bold px-1">${item.cantidad}</span>
+              <button onclick="cambiarCantidadItem('${item.id}', 1)" class="w-6 h-6 rounded bg-gray-200 font-bold text-slate-700">+</button>
+              <button onclick="eliminarItemCarrito('${item.id}')" class="text-rose-500 hover:text-rose-700 px-1"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
 
       const descuentoVal = inputDesc ? Math.max(0, Number(inputDesc.value) || 0) : 0;
-
-      if (productoSeleccionado) {
-        lblNombre.textContent = productoSeleccionado.nombre || productoSeleccionado.producto;
-        lblCant.textContent = cantidadSeleccionada;
-        const subtotal = (Number(productoSeleccionado.precio) || 0) * cantidadSeleccionada;
-        const total = Math.max(0, subtotal - descuentoVal);
-        lblTotal.textContent = `$${total.toFixed(2)}`;
-      } else {
-        lblNombre.textContent = 'Ninguno';
-        lblCant.textContent = '1';
-        lblTotal.textContent = '$0.00';
-      }
+      const totalFinal = Math.max(0, subtotalGeneral - descuentoVal);
+      lblTotal.textContent = `$${totalFinal.toFixed(2)}`;
     }
 
-    async function confirmarVenta() {
-      if (!productoSeleccionado) {
-        alert('Por favor selecciona un producto.');
+    async function confirmarVentaMulti() {
+      if (carrito.length === 0) {
+        alert('El carrito está vacío. Agrega al menos un producto.');
         return;
       }
 
       const metodoPago = document.getElementById('select-metodo-pago').value;
       const inputDesc = document.getElementById('input-descuento');
-      const descuento = inputDesc ? Math.max(0, Number(inputDesc.value) || 0) : 0;
+      const descuentoGlobal = inputDesc ? Math.max(0, Number(inputDesc.value) || 0) : 0;
 
-      if (typeof registrarVenta === 'function') {
-        await registrarVenta(productoSeleccionado, cantidadSeleccionada, metodoPago, descuento);
-        productoSeleccionado = null;
-        cantidadSeleccionada = 1;
-        if (inputDesc) inputDesc.value = '';
-        actualizarResumenSeleccion();
-        renderGridProductos();
-        actualizarMetricasUI();
+      if (typeof registrarVentaMultiple === 'function') {
+        const exito = await registrarVentaMultiple(carrito, metodoPago, descuentoGlobal);
+        if (exito) {
+          carrito = [];
+          if (inputDesc) inputDesc.value = '';
+          actualizarCarritoUI();
+          renderGridProductos();
+          actualizarMetricasUI();
+        }
       }
     }
 
