@@ -4,7 +4,7 @@ const SUPABASE_KEY = 'sb_publishable_gWOLb2P47i8qiQuSAnAldA_54neh6U7';
 
 let _supabase = null;
 
-// Función segura para inicializar Supabase evitando que falle si el CDN tarda un milisegundo más
+// Función segura para inicializar Supabase evitando fallos de carga del CDN
 function obtenerSupabase() {
   if (_supabase) return _supabase;
   if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -32,7 +32,7 @@ async function cargarDatosGlobales() {
   const client = obtenerSupabase();
   if (!client) {
     console.warn("Esperando a que cargue la librería de Supabase...");
-    setTimeout(cargarDatosGlobales, 300); // Reintentar en 300ms si el CDN va lento
+    setTimeout(cargarDatosGlobales, 300);
     return;
   }
 
@@ -53,11 +53,9 @@ async function cargarDatosGlobales() {
     if (errCrrs) console.error("Error al cargar cierres:", errCrrs);
     else window.cierres = crrs || [];
 
-    // Refrescar automáticamente todas las vistas de la app
+    // Refrescar automáticamente todas las vistas e interfaces
     if (typeof renderProductosVenta === 'function') renderProductosVenta();
     if (typeof actualizarMetricasUI === 'function') actualizarMetricasUI();
-
-    // Compatibilidad para actualizar inventario y todas las demás pestañas
     if (typeof renderProductos === 'function') renderProductos();
     if (typeof renderInventario === 'function') renderInventario();
     if (typeof renderTablaProductos === 'function') renderTablaProductos();
@@ -169,20 +167,24 @@ function actualizarMetricasUI() {
   const elVentasHoy = document.getElementById('metric-ventas-hoy') || document.getElementById('total-ventas-hoy');
   if (elVentasHoy) elVentasHoy.textContent = `$${ventasHoy.toFixed(2)}`;
 
-  const elGananciaNeta = document.getElementById('metric-ganancia-neta');
+  const elGananciaNeta = document.getElementById('metric-ganancia-neta') || document.getElementById('total-ganancia-neta');
   if (elGananciaNeta) elGananciaNeta.textContent = `$${gananciaNetaMes.toFixed(2)}`;
 
-  const elReinversion = document.getElementById('metric-reinversion');
+  const elReinversion = document.getElementById('metric-reinversion') || document.getElementById('total-reinversion');
   if (elReinversion) elReinversion.textContent = `$${reinversionMes.toFixed(2)}`;
 
-  const elVentasAcum = document.getElementById('metric-ventas-acum');
+  const elVentasAcum = document.getElementById('metric-ventas-acum') || document.getElementById('total-ventas-brutas');
   if (elVentasAcum) elVentasAcum.textContent = `$${totalVentasAcumuladas.toFixed(2)}`;
 
-  const elGastosFijos = document.getElementById('metric-gastos-fijos');
+  const elGastosFijos = document.getElementById('metric-gastos-fijos') || document.getElementById('total-gastos');
   if (elGastosFijos) elGastosFijos.textContent = `$${gastosMes.toFixed(2)}`;
 
-  const elVentasReg = document.getElementById('metric-ventas-reg');
+  const elVentasReg = document.getElementById('metric-ventas-reg') || document.getElementById('cant-ventas');
   if (elVentasReg) elVentasReg.textContent = `${ventasRegCount}`;
+
+  if (typeof renderResumenMensual === 'function') {
+    renderResumenMensual();
+  }
 }
 
 // Filtrar productos
@@ -481,6 +483,193 @@ async function eliminarCierre(id) {
   }
 }
 
+// ==========================================
+// MÓDULO: RESUMEN MENSUAL Y GRÁFICAS DE DÍAS
+// ==========================================
+
+function inicializarSelectoresResumen() {
+  const selectMes = document.getElementById('resumen-select-mes');
+  const selectAnio = document.getElementById('resumen-select-anio');
+
+  if (!selectMes || !selectAnio) return;
+
+  const hoy = new Date();
+  const anioActual = hoy.getFullYear();
+
+  if (selectAnio.options.length === 0) {
+    for (let a = anioActual; a >= anioActual - 3; a--) {
+      const opt = document.createElement('option');
+      opt.value = a;
+      opt.textContent = a;
+      selectAnio.appendChild(opt);
+    }
+  }
+
+  if (!selectMes.dataset.initialized) {
+    selectMes.value = hoy.getMonth();
+    selectAnio.value = anioActual;
+    selectMes.dataset.initialized = "true";
+  }
+}
+
+let miGraficoDias = null;
+
+function renderGraficaDiasSemana(labels, datos) {
+  const canvas = document.getElementById('chart-dias-semana');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+
+  const maxVenta = Math.max(...datos);
+  const idxMax = datos.indexOf(maxVenta);
+  const labelMejor = document.getElementById('label-mejor-dia');
+
+  if (labelMejor) {
+    if (maxVenta > 0) {
+      labelMejor.innerText = `Top: ${labels[idxMax]} ($${maxVenta.toFixed(2)})`;
+    } else {
+      labelMejor.innerText = 'Sin registros';
+    }
+  }
+
+  if (miGraficoDias) {
+    miGraficoDias.destroy();
+  }
+
+  const minVenta = Math.min(...datos);
+  const backgroundColors = datos.map(val => {
+    if (val === maxVenta && maxVenta > 0) return '#10b981';
+    if (val === minVenta && maxVenta > 0) return '#f87171';
+    return '#6366f1';
+  });
+
+  miGraficoDias = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Ventas ($)',
+        data: datos,
+        backgroundColor: backgroundColors,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `Total: $${context.raw.toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: { size: 9 },
+            callback: (value) => `$${value}`
+          },
+          grid: { color: '#f3f4f6' }
+        },
+        x: {
+          ticks: { font: { size: 10, weight: 'bold' } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderResumenMensual() {
+  inicializarSelectoresResumen();
+
+  const selectMes = document.getElementById('resumen-select-mes');
+  const selectAnio = document.getElementById('resumen-select-anio');
+
+  const hoy = new Date();
+  const mesSel = selectMes ? parseInt(selectMes.value, 10) : hoy.getMonth();
+  const anioSel = selectAnio ? parseInt(selectAnio.value, 10) : hoy.getFullYear();
+
+  const ventasMes = (window.ventas || []).filter(v => {
+    const f = new Date(v.fecha || v.created_at || Date.now());
+    return f.getMonth() === mesSel && f.getFullYear() === anioSel;
+  });
+
+  const gastosMes = (window.gastos || []).filter(g => {
+    const f = new Date(g.fecha || g.created_at || Date.now());
+    return f.getMonth() === mesSel && f.getFullYear() === anioSel;
+  });
+
+  let totalVentas = 0;
+  let gananciaBruta = 0;
+
+  const ventasPorDiaSemana = [0, 0, 0, 0, 0, 0, 0];
+  const nombresDias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+  const acumuladoProductos = {};
+
+  ventasMes.forEach(v => {
+    const fechaVenta = new Date(v.fecha || v.created_at || Date.now());
+    const diaSemana = fechaVenta.getDay();
+    const monto = Number(v.total || v.ingreso || 0);
+    const cant = Number(v.cantidad || 1);
+    const nombreProd = v.producto || 'Producto';
+
+    totalVentas += monto;
+    gananciaBruta += Number(v.gananciaNeta || v.ganancia_neta || v.gananciaBruta || v.ganancia_bruta || 0);
+
+    ventasPorDiaSemana[diaSemana] += monto;
+
+    if (!acumuladoProductos[nombreProd]) {
+      acumuladoProductos[nombreProd] = { cantidad: 0, total: 0 };
+    }
+    acumuladoProductos[nombreProd].cantidad += cant;
+    acumuladoProductos[nombreProd].total += monto;
+  });
+
+  const totalGastos = gastosMes.reduce((acc, g) => acc + Number(g.monto || g.precio || 0), 0);
+  const gananciaNeta = gananciaBruta - totalGastos;
+  const totalTransacciones = ventasMes.length;
+  const ticketPromedio = totalTransacciones > 0 ? (totalVentas / totalTransacciones) : 0;
+
+  const elTotal = document.getElementById('resumen-total-ventas');
+  if (elTotal) elTotal.innerText = `$${totalVentas.toFixed(2)}`;
+
+  const elGanancia = document.getElementById('resumen-ganancia-neta');
+  if (elGanancia) elGanancia.innerText = `$${gananciaNeta.toFixed(2)}`;
+
+  const elTrans = document.getElementById('resumen-transacciones');
+  if (elTrans) elTrans.innerText = `${totalTransacciones}`;
+
+  const elTicket = document.getElementById('resumen-ticket-promedio');
+  if (elTicket) elTicket.innerText = `$${ticketPromedio.toFixed(2)}`;
+
+  renderGraficaDiasSemana(nombresDias, ventasPorDiaSemana);
+
+  const contenedorTop = document.getElementById('resumen-tabla-top-productos');
+  if (contenedorTop) {
+    const topLista = Object.entries(acumuladoProductos)
+      .map(([nombre, datos]) => ({ nombre, ...datos }))
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5);
+
+    if (topLista.length === 0) {
+      contenedorTop.innerHTML = `<tr><td colspan="3" class="text-center py-2 text-gray-400 text-[11px]">Sin ventas registradas en este mes.</td></tr>`;
+    } else {
+      contenedorTop.innerHTML = topLista.map(p => `
+        <tr class="border-b last:border-0 hover:bg-gray-50">
+          <td class="py-1.5 px-2 font-bold text-slate-800 text-left truncate">${p.nombre}</td>
+          <td class="py-1.5 px-2 text-center font-bold text-slate-600">${p.cantidad} u.</td>
+          <td class="py-1.5 px-2 text-right font-extrabold text-emerald-600">$${p.total.toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+  }
+}
+
 // Registro global de funciones
 window.obtenerFechaLocal = obtenerFechaLocal;
 window.cargarDatosGlobales = cargarDatosGlobales;
@@ -494,6 +683,7 @@ window.actualizarDiferenciaCierre = actualizarDiferenciaCierre;
 window.registrarCierreCaja = registrarCierreCaja;
 window.renderCierres = renderCierres;
 window.eliminarCierre = eliminarCierre;
+window.renderResumenMensual = renderResumenMensual;
 
 document.addEventListener('DOMContentLoaded', () => {
   cargarDatosGlobales();
